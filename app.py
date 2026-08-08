@@ -5,9 +5,9 @@ st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centere
 
 st.title("⚽ ValueBet Quant - Modèle Dixon-Coles")
 
-# ---------------------------------------------------------
-# 1. PAR-TIE xG (GRILLE 2x2 STRICTE)
-# ---------------------------------------------------------
+# =========================================================
+# 1. PARTIE xG : GRILLE 2x2 (DOMICILE À GAUCHE / EXTÉRIEUR À DROITE)
+# =========================================================
 st.subheader("📝 1. Statistiques xG")
 
 col_dom, col_ext = st.columns(2)
@@ -24,13 +24,13 @@ with col_ext:
 
 st.divider()
 
-# ---------------------------------------------------------
-# 2. RÉSULTATS DU CALCUL DE POISSON (ESPÉRANCE DE BUTS)
-# ---------------------------------------------------------
+# =========================================================
+# 2. RÉSULTAT DU CALCUL DE POISSON
+# =========================================================
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
 
-st.subheader("📊 2. Résultat du calcul de Poisson (Espérance de Buts)")
+st.subheader("📊 2. Résultat du calcul de Poisson (Espérance de buts)")
 
 col_p1, col_p2 = st.columns(2)
 with col_p1:
@@ -40,35 +40,39 @@ with col_p2:
 
 st.divider()
 
-# ---------------------------------------------------------
-# 3. SAISIE DES COTES BETCLIC (LAYOUT ERGONOMIE BETCLIC)
-# ---------------------------------------------------------
+# =========================================================
+# 3. SAISIE DES COTES BETCLIC (DISPOSÉES COMME SUR BETCLIC)
+# =========================================================
 st.subheader("📊 3. Cotes Betclic")
 
+# 1N2
 st.markdown("**Résultat du match (1N2)**")
 c1, cN, c2 = st.columns(3)
 bk_1 = c1.number_input("1 (Dom)", value=2.28, step=0.01, key="bk_1")
 bk_N = cN.number_input("N (Nul)", value=3.30, step=0.01, key="bk_N")
 bk_2 = c2.number_input("2 (Ext)", value=2.77, step=0.01, key="bk_2")
 
+# DNB
 st.markdown("**Remboursé si match nul (DNB)**")
 cd1, cd2 = st.columns(2)
 bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01, key="bk_dnb1")
 bk_dnb2 = cd2.number_input("DNB 2", value=1.90, step=0.01, key="bk_dnb2")
 
+# Over / Under 2.5
 st.markdown("**Nombre total de buts (2.5)**")
 co25, cu25 = st.columns(2)
 bk_o25 = co25.number_input("+ de 2.5", value=1.70, step=0.01, key="bk_o25")
 bk_u25 = cu25.number_input("- de 2.5", value=1.95, step=0.01, key="bk_u25")
 
+# BTTS (Oui à gauche, Non à droite)
 st.markdown("**Les 2 équipes marquent (BTTS)**")
 cbtts_oui, cbtts_non = st.columns(2)
 bk_btts_oui = cbtts_oui.number_input("Oui", value=1.59, step=0.01, key="bk_btts_oui")
 bk_btts_non = cbtts_non.number_input("Non", value=2.13, step=0.01, key="bk_btts_non")
 
-# ---------------------------------------------------------
-# 4. CALCUL DES PROBABILITÉS DIXON-COLES
-# ---------------------------------------------------------
+# =========================================================
+# 4. CALCULS DU MODÈLE DIXON-COLES
+# =========================================================
 def poisson(k, lmbda):
     return (math.pow(lmbda, k) * math.exp(-lmbda)) / math.factorial(k)
 
@@ -98,9 +102,9 @@ p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
 st.divider()
 
-# ---------------------------------------------------------
+# =========================================================
 # 5. BILAN & DÉTECTION VALUEBETS
-# ---------------------------------------------------------
+# =========================================================
 st.subheader("🎯 4. Bilan & Comparatif Probas")
 
 def display_card(title, bk, prob):
