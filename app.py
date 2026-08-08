@@ -32,12 +32,21 @@ st.divider()
 st.subheader("📊 2. Cotes Bookmaker (Betclic)")
 
 leagues = {
+    "Ligue 1 (France)": "soccer_france_ligue_one",
+    "Ligue 2 (France)": "soccer_france_ligue_two",
+    "Bundesliga 2 (Allemagne)": "soccer_germany_bundesliga2",
+    "Eliteserien (Norvège)": "soccer_norway_eliteserien",
+    "Liga I (Roumanie)": "soccer_romania_liga_1",
+    "Premiership (Écosse)": "soccer_spl",
+    "Premier Division (Irlande)": "soccer_eircom_league",
+    "Bundesliga (Autriche)": "soccer_austria_bundesliga",
+    "Liga Profesional (Argentine)": "soccer_argentina_primera_division",
+    "Liga MX (Mexique)": "soccer_mexico_ligamx",
     "MLS (USA)": "soccer_usa_mls",
-    "Ligue 1": "soccer_france_ligue_one",
-    "Premier League": "soccer_epl",
-    "La Liga": "soccer_spain_la_liga",
-    "Serie A": "soccer_italy_serie_a",
-    "Bundesliga": "soccer_germany_bundesliga",
+    "Premier League (Angleterre)": "soccer_epl",
+    "La Liga (Espagne)": "soccer_spain_la_liga",
+    "Serie A (Italie)": "soccer_italy_serie_a",
+    "Bundesliga (Allemagne)": "soccer_germany_bundesliga",
     "Ligue des Champions": "soccer_uefa_champs_league"
 }
 
