@@ -3,53 +3,52 @@ import math
 
 st.set_page_config(page_title="DNB & BTTS", page_icon="⚽", layout="centered")
 
-# CSS agressif pour réduire la taille globale et tout faire tenir sans scroll
+# CSS pour bloquer le scroll horizontal et ajuster la largeur sur smartphone
 st.markdown("""
 <style>
+    /* Verrouillage strict de la largeur d'écran */
+    html, body, [data-testid="stAppViewContainer"] {
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+    }
     .block-container {
-        padding: 0.5rem 0.2rem !important;
+        padding: 0.5rem 0.3rem !important;
+        max-width: 100% !important;
     }
     header, footer { display: none !important; }
-    
-    /* Suppression des espaces vides */
-    div[data-testid="stVerticalBlock"] > div {
-        gap: 0.2rem !important;
-    }
-    
-    /* Inputs ultra-compacts sans boutons -/+ */
-    .stTextInput div div input {
-        text-align: center !important;
-        font-weight: bold !important;
-        padding: 1px 2px !important;
-        font-size: 0.8rem !important;
-        height: 28px !important;
-        min-height: 28px !important;
-    }
-    .stTextInput label {
-        font-size: 0.65rem !important;
-        margin-bottom: 0px !important;
-        white-space: nowrap !important;
-        color: #94a3b8 !important;
-    }
-    
-    /* Forcer 2 colonnes strictes sur mobile */
-    div[data-testid="column"] {
-        width: 49% !important;
-        flex: 1 1 49% !important;
-        min-width: 49% !important;
-        padding: 0px 1px !important;
-    }
+
+    /* Forcer l'alignement côte à côte sans dépassement */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        gap: 2px !important;
+        width: 100% !important;
+        gap: 4px !important;
+    }
+    div[data-testid="column"] {
+        flex: 1 1 50% !important;
+        min-width: 0 !important;
+        width: 50% !important;
+    }
+    
+    /* Inputs ajustés pour ne pas déborder */
+    .stTextInput div div input {
+        text-align: center !important;
+        font-weight: bold !important;
+        padding: 2px !important;
+        font-size: 0.85rem !important;
+        height: 30px !important;
+    }
+    .stTextInput label {
+        font-size: 0.7rem !important;
+        margin-bottom: 0px !important;
+        color: #94a3b8 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 1. ÉTAPE 1 : xG EN 2 COLONNES (DOMICILE / EXTÉRIEUR)
+# 1. SAISIE xG (2 COLONNES : GAUCHE DOM / DROITE EXT)
 # ---------------------------------------------------------
 c_dom, c_ext = st.columns(2)
 with c_dom:
@@ -62,7 +61,7 @@ with c_ext:
     xgB_m_str = st.text_input("Marqués", value="1.00", key="xgB_m")
     xgB_c_str = st.text_input("Concédés", value="1.33", key="xgB_c")
 
-# Conversion sécurisée des inputs
+# Conversions sécurisées
 try: xgA_m = float(xgA_m_str)
 except: xgA_m = 0.0
 try: xgA_c = float(xgA_c_str)
@@ -73,7 +72,7 @@ try: xgB_c = float(xgB_c_str)
 except: xgB_c = 0.0
 
 # ---------------------------------------------------------
-# 2. ÉTAPE 2 : COTES BETCLIC EN 2 COLONNES
+# 2. COTES BETCLIC (2 COLONNES)
 # ---------------------------------------------------------
 st.markdown("<div style='font-size:0.75rem; font-weight:bold; color:#f59e0b; margin-top:4px;'>📊 COTES BETCLIC</div>", unsafe_allow_html=True)
 c_c1, c_c2 = st.columns(2)
@@ -125,11 +124,11 @@ p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
 # ---------------------------------------------------------
-# 4. CARTE CONDENSÉE ULTRA-FIT
+# 4. RÉSULTATS (HTML FLEXBOX ULTRA-SLIM ANTI-OVERFLOW)
 # ---------------------------------------------------------
 st.markdown(
     f"""
-    <div style="background-color: #0f172a; padding: 2px 6px; border-radius: 4px; text-align: center; margin: 4px 0px; border: 1px solid #334155;">
+    <div style="background-color: #0f172a; padding: 4px; border-radius: 4px; text-align: center; margin: 6px 0px; border: 1px solid #334155;">
         <span style="color: #94a3b8; font-size: 0.7rem; font-weight: bold;">xG ATTENDUS : </span>
         <span style="color: #f8fafc; font-size: 0.95rem; font-weight: 900; font-family: monospace;">{lambda_val:.2f} — {mu_val:.2f}</span>
     </div>
@@ -137,44 +136,52 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-def build_card_html(title, bk, prob):
-    fair = 1 / prob if prob > 0 else 0
-    prob_quant = prob * 100
-    prob_book = (1 / bk * 100) if bk > 0 else 0
-    
-    is_val = bk > fair and bk > 0
-    val_edge = (((bk * prob) - 1) * 100) if is_val else 0
-    is_high_conf = is_val and prob_quant >= 75.0
-    
-    if is_high_conf:
-        bg_color = "#064e3b"
-        border = "1px solid #f59e0b"
-        badge_html = f'<div style="background-color: #10b981; color: #000; font-weight: 900; font-size: 0.68rem; padding: 1px; border-radius: 2px; text-align: center; margin-top: 2px;">🔥 ULTRA (+{val_edge:.1f}%)</div>'
-    elif is_val:
-        bg_color = "#1e4620"
-        border = "1px solid #10b981"
-        badge_html = f'<div style="color: #10b981; font-weight: bold; margin-top: 2px; font-size: 0.68rem;">+{val_edge:.1f}% VALUE</div>'
-    else:
-        bg_color = "#1e293b"
-        border = "1px solid #334155"
-        badge_html = '<div style="color: #ef4444; font-weight: bold; margin-top: 2px; font-size: 0.68rem;">NO VALUE</div>'
+def render_section_html(market_title, title1, bk1, prob1, title2, bk2, prob2):
+    def get_card_data(title, bk, prob):
+        fair = 1 / prob if prob > 0 else 0
+        prob_quant = prob * 100
+        prob_book = (1 / bk * 100) if bk > 0 else 0
+        is_val = bk > fair and bk > 0
+        val_edge = (((bk * prob) - 1) * 100) if is_val else 0
+        is_high_conf = is_val and prob_quant >= 75.0
         
-    return f'''<div style="background-color: {bg_color}; border: {border}; color: #ffffff; padding: 4px; border-radius: 4px; text-align: center;">
-        <div style="font-size: 0.7rem; font-weight: bold; color: #cbd5e1;">{title}</div>
-        <div style="font-size: 1.2rem; font-weight: 900; color: #38bdf8; line-height: 1;">{prob_quant:.1f}%</div>
-        <div style="font-size: 0.65rem; color: #94a3b8;">Book: <b>{bk:.2f}</b> ({prob_book:.0f}%)</div>
-        <div style="font-size: 0.65rem; color: #f59e0b; font-weight: bold;">Mini: ≥ {fair:.2f}</div>
-        {badge_html}
-    </div>'''
+        if is_high_conf:
+            bg = "#064e3b"
+            bd = "1px solid #f59e0b"
+            badge = f'<div style="background-color:#10b981; color:#000; font-weight:900; font-size:0.65rem; padding:1px; border-radius:2px; margin-top:2px;">🔥 ULTRA (+{val_edge:.1f}%)</div>'
+        elif is_val:
+            bg = "#1e4620"
+            bd = "1px solid #10b981"
+            badge = f'<div style="color:#10b981; font-weight:bold; margin-top:2px; font-size:0.65rem;">+{val_edge:.1f}% VALUE</div>'
+        else:
+            bg = "#1e293b"
+            bd = "1px solid #334155"
+            badge = '<div style="color:#ef4444; font-weight:bold; margin-top:2px; font-size:0.65rem;">NO VALUE</div>'
+            
+        return f"""
+        <div style="flex:1; background-color:{bg}; border:{bd}; color:#fff; padding:4px; border-radius:4px; text-align:center; min-width:0;">
+            <div style="font-size:0.7rem; font-weight:bold; color:#cbd5e1;">{title}</div>
+            <div style="font-size:1.15rem; font-weight:900; color:#38bdf8; line-height:1;">{prob_quant:.1f}%</div>
+            <div style="font-size:0.62rem; color:#94a3b8;">Book: <b>{bk:.2f}</b> ({prob_book:.0f}%)</div>
+            <div style="font-size:0.62rem; color:#f59e0b; font-weight:bold;">Mini: ≥ {fair:.2f}</div>
+            {badge}
+        </div>
+        """
 
-# MARCHÉ DNB
-st.markdown("<div style='font-size: 0.72rem; font-weight: bold; margin-bottom: 2px;'>🎯 DNB</div>", unsafe_allow_html=True)
-col_dnb1, col_dnb2 = st.columns(2)
-with col_dnb1: st.markdown(build_card_html("DNB 1", bk_dnb1, p_dnb1), unsafe_allow_html=True)
-with col_dnb2: st.markdown(build_card_html("DNB 2", bk_dnb2, p_dnb2), unsafe_allow_html=True)
+    card1 = get_card_data(title1, bk1, prob1)
+    card2 = get_card_data(title2, bk2, prob2)
 
-# MARCHÉ BTTS
-st.markdown("<div style='font-size: 0.72rem; font-weight: bold; margin-top: 2px; margin-bottom: 2px;'>🎯 BTTS</div>", unsafe_allow_html=True)
-col_btts1, col_btts2 = st.columns(2)
-with col_btts1: st.markdown(build_card_html("BTTS OUI", bk_btts_oui, p_btts_oui), unsafe_allow_html=True)
-with col_btts2: st.markdown(build_card_html("BTTS NON", bk_btts_non, p_btts_non), unsafe_allow_html=True)
+    html_block = f"""
+    <div style="margin-bottom: 6px;">
+        <div style="font-size:0.72rem; font-weight:bold; margin-bottom:2px; color:#f1f5f9;">{market_title}</div>
+        <div style="display:flex; gap:4px; width:100%;">
+            {card1}
+            {card2}
+        </div>
+    </div>
+    """
+    st.markdown(html_block, unsafe_allow_html=True)
+
+# Affichage DNB et BTTS en conteneurs HTML flexbox stricts
+render_section_html("🎯 DNB", "DNB 1", bk_dnb1, p_dnb1, "DNB 2", bk_dnb2, p_dnb2)
+render_section_html("🎯 BTTS", "BTTS OUI", bk_btts_oui, p_btts_oui, "BTTS NON", bk_btts_non, p_btts_non)
