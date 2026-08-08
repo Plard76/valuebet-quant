@@ -1,5 +1,5 @@
 import streamlit as st
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import re
 import math
@@ -11,25 +11,18 @@ st.title("⚽ ValueBet Quant - Match Direct & Cotes Betclic")
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
 # ---------------------------------------------------------
-# 1. SCRAPING xG ET RECHERCHE AUTOMATIQUE DES ÉQUIPES
+# 1. SCRAPING xG AVEC CLOUDSCRAPER (ANTI-BLOCAGE)
 # ---------------------------------------------------------
 url = st.text_input("🔗 Colle le lien du match FootyStats :", key="url_input")
 
 xg_dom_m, xg_dom_c = 1.80, 0.90
 xg_ext_m, xg_ext_c = 1.00, 1.20
-home_team_found = ""
-away_team_found = ""
-
-bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 
 if url:
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Referer': 'https://footystats.org/'
-        }
-        res = requests.get(url, headers=headers, timeout=8)
+        # Utilisation de cloudscraper pour passer Cloudflare
+        scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'android', 'desktop': False})
+        res = scraper.get(url)
         
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -43,18 +36,12 @@ if url:
                 xg_dom_m, xg_dom_c = valid_xg[0], valid_xg[1]
                 xg_ext_m, xg_ext_c = valid_xg[2], valid_xg[3]
                 st.success(f"✅ xG extraits : Dom ({xg_dom_m} / {xg_dom_c}) | Ext ({xg_ext_m} / {xg_ext_c})")
-            
-            # Extraction des noms d'équipes depuis le titre de la page
-            title = soup.title.string if soup.title else ""
-            if " vs " in title or " v " in title or " - " in title:
-                # Tente de trouver les équipes dans le titre
-                clean_title = title.split("Pronostics")[0].split("Stats")[0]
-                st.info(f"📌 Match détecté : {clean_title.strip()}")
-                
+            else:
+                st.warning("⚠️ xG non isolés automatiquement sur ce lien. Ajuste manuellement ci-dessous.")
         else:
-            st.error(f"❌ Blocage FootyStats (Code {res.status_code}).")
+            st.error(f"❌ Blocage temporaire (Code {res.status_code}). Saisie manuelle requise.")
     except Exception as e:
-        st.error(f"❌ Erreur de lecture du lien : {e}")
+        st.error(f"❌ Erreur de lecture : {e}")
 
 st.divider()
 
@@ -77,24 +64,27 @@ st.divider()
 # ---------------------------------------------------------
 st.subheader("📊 Cotes Betclic en Direct")
 
-search_query = st.text_input("🔍 Recherche le nom d'une des équipes sur Betclic :", placeholder="ex: PSG, Real Madrid, Arsenal...")
+bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
+search_query = st.text_input("🔍 Recherche une équipe sur Betclic :", placeholder="ex: PSG, Houston Dynamo...")
 
 if search_query:
-    # On parcourt les compétitions principales pour trouver le match
-    sports_keys = ["soccer_france_ligue_one", "soccer_epl", "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga", "soccer_uefa_champs_league"]
+    sports_keys = [
+        "soccer_france_ligue_one", "soccer_epl", "soccer_spain_la_liga", 
+        "soccer_italy_serie_a", "soccer_germany_bundesliga", "soccer_uefa_champs_league",
+        "soccer_usa_mls"
+    ]
     found = False
     
     for s_key in sports_keys:
         if found: break
         odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h&bookmakers=betclic"
         try:
-            r = requests.get(odds_url)
+            r = scraper.get(odds_url)
             data = r.json()
             for match in data:
                 h_name = match['home_team']
                 a_name = match['away_team']
                 
-                # Vérifie si le nom cherché est dans le match
                 if search_query.lower() in h_name.lower() or search_query.lower() in a_name.lower():
                     for bm in match.get('bookmakers', []):
                         if bm['key'] == 'betclic':
@@ -103,14 +93,14 @@ if search_query:
                                 if o['name'] == h_name: bk_1_val = float(o['price'])
                                 elif o['name'] == a_name: bk_2_val = float(o['price'])
                                 else: bk_N_val = float(o['price'])
-                            st.success(f"🎯 Cotes Betclic trouvées en direct pour {h_name} vs {a_name} !")
+                            st.success(f"🎯 Cotes Betclic trouvées pour {h_name} vs {a_name} !")
                             found = True
                             break
         except Exception:
             pass
             
     if not found:
-        st.warning("Aucun match correspondant trouvé en direct chez Betclic. Ajuste les cotes ci-dessous.")
+        st.warning("Aucun match correspondant trouvé chez Betclic.")
 
 st.markdown("**Marché 1N2**")
 c1, cN, c2 = st.columns(3)
