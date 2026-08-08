@@ -4,14 +4,14 @@ import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Auto Cotes Betclic")
+st.title("⚽ ValueBet Quant - Modèle vs Betclic")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
 # ---------------------------------------------------------
 # 1. SAISIE DES xG
 # ---------------------------------------------------------
-st.subheader("📝 1. Entre les 4 xG")
+st.subheader("📝 1. Statistiques xG")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -27,73 +27,65 @@ with col2:
 st.divider()
 
 # ---------------------------------------------------------
-# 2. CHARGEMENT AUTOMATIQUE DES COTES VIA L'API
+# 2. CHARGEMENT API OU SAISIE MANUELLE DES COTES
 # ---------------------------------------------------------
-st.subheader("⚡ 2. Cotes Automatiques")
+st.subheader("📊 2. Cotes Bookmaker (Betclic)")
 
 leagues = {
+    "MLS (USA)": "soccer_usa_mls",
     "Ligue 1": "soccer_france_ligue_one",
     "Premier League": "soccer_epl",
     "La Liga": "soccer_spain_la_liga",
     "Serie A": "soccer_italy_serie_a",
     "Bundesliga": "soccer_germany_bundesliga",
-    "Ligue des Champions": "soccer_uefa_champs_league",
-    "MLS (USA)": "soccer_usa_mls"
+    "Ligue des Champions": "soccer_uefa_champs_league"
 }
 
 selected_league = st.selectbox("Sélectionne la compétition :", list(leagues.keys()))
 
-bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
-bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
+bk_1_val, bk_N_val, bk_2_val = 2.28, 3.30, 2.77
+bk_o25_val, bk_u25_val, bk_btts_val = 1.70, 1.95, 1.59
 
 league_key = leagues[selected_league]
-
-# Requête URL nettoyée de tout paramètre problématique pour l'API
 odds_url = f"https://api.the-odds-api.com/v4/sports/{league_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h"
 
 try:
-    r = requests.get(odds_url, timeout=5)
+    r = requests.get(odds_url, timeout=4)
     if r.status_code == 200:
         data = r.json()
         if isinstance(data, list) and len(data) > 0:
             matches_dict = {f"{m['home_team']} vs {m['away_team']}": m for m in data}
-            selected_match = st.selectbox("Choisis le match :", ["-- Sélectionner --"] + list(matches_dict.keys()))
+            selected_match = st.selectbox("Charger les cotes d'un match (Optionnel) :", ["-- Manuel / Choisir un match --"] + list(matches_dict.keys()))
             
-            if selected_match != "-- Sélectionner --":
+            if selected_match != "-- Manuel / Choisir un match --":
                 m_data = matches_dict[selected_match]
-                h_name = m_data['home_team']
-                a_name = m_data['away_team']
-                
+                h_name, a_name = m_data['home_team'], m_data['away_team']
                 bookmakers = m_data.get('bookmakers', [])
-                
-                # Cherche Betclic, sinon Unibet, sinon le 1er dispo
-                selected_bm = None
-                for target_bm in ['betclic', 'unibet_eu', 'winamax', 'pinnacle']:
-                    selected_bm = next((b for b in bookmakers if b['key'] == target_bm), None)
-                    if selected_bm:
-                        break
-                if not selected_bm and len(bookmakers) > 0:
-                    selected_bm = bookmakers[0]
-                
-                if selected_bm:
-                    for market in selected_bm.get('markets', []):
+                bm = next((b for b in bookmakers if b['key'] == 'betclic'), bookmakers[0] if bookmakers else None)
+                if bm:
+                    for market in bm.get('markets', []):
                         if market['key'] == 'h2h':
                             for o in market['outcomes']:
                                 if o['name'] == h_name: bk_1_val = float(o['price'])
                                 elif o['name'] == a_name: bk_2_val = float(o['price'])
                                 else: bk_N_val = float(o['price'])
-                    st.success(f"🎯 Cotes réelles ({selected_bm['title']}) : 1 ({bk_1_val}) | N ({bk_N_val}) | 2 ({bk_2_val})")
-        else:
-            st.info("Aucun match à venir coté pour ce championnat actuellement.")
-    else:
-        st.warning(f"⚠️ Code réponse API : {r.status_code}")
-except Exception as e:
-    st.error(f"Erreur de connexion : {e}")
+except Exception:
+    pass
 
-bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 1.50
-bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 2.60
+st.markdown("**Saisie / Ajustement rapide des cotes Betclic :**")
+c1, cN, c2 = st.columns(3)
+bk_1 = c1.number_input("Cote 1", value=bk_1_val, step=0.01)
+bk_N = cN.number_input("Cote N", value=bk_N_val, step=0.01)
+bk_2 = c2.number_input("Cote 2", value=bk_2_val, step=0.01)
 
-st.divider()
+cd1, cd2 = st.columns(2)
+bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01)
+bk_dnb2 = cd2.number_input("DNB 2", value=1.90, step=0.01)
+
+co25, cu25, cbtts = st.columns(3)
+bk_o25 = co25.number_input("Over 2.5", value=bk_o25_val, step=0.01)
+bk_u25 = cu25.number_input("Under 2.5", value=bk_u25_val, step=0.01)
+bk_btts = cbtts.number_input("BTTS Oui", value=bk_btts_val, step=0.01)
 
 # ---------------------------------------------------------
 # 3. CALCULS MODÈLE DIXON-COLES
@@ -127,26 +119,34 @@ p_u25 = 1 - p_o25
 p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
-st.subheader("🎯 Bilan & Détection ValueBets")
+st.divider()
+st.subheader("🎯 Bilan & Comparatif Probas")
 
 def display_card(title, bk, prob):
     fair = 1 / prob if prob > 0 else 0
-    prob_pct = prob * 100
+    prob_quant = prob * 100
+    prob_book = (1 / bk * 100) if bk > 0 else 0
+    
     is_val = bk > fair and bk > 0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
     
     if is_val:
-        badge = f'<span style="color: #10b981; font-weight: bold;">+{val_edge:.1f}% VALUE</span>'
+        badge = f'<span style="color: #10b981; font-weight: bold; font-size: 1.1rem;">+{val_edge:.1f}% VALUE</span>'
     else:
-        badge = '<span style="color: #ef4444; font-weight: bold;">NO VALUE</span>'
+        badge = '<span style="color: #ef4444; font-weight: bold; font-size: 1.1rem;">NO VALUE</span>'
         
     st.markdown(
         f"""
-        <div style="background-color: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #334155;">
-            <div style="font-size: 0.85rem; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">{title}</div>
-            <div style="font-size: 0.95rem; color: #f8fafc;">Cote Est. : <b>{fair:.2f}</b> | Book : <b>{bk:.2f}</b></div>
-            <div style="font-size: 0.8rem; color: #3b82f6; font-weight: bold; margin-top: 2px;">Proba estimée : {prob_pct:.1f}%</div>
-            <div style="font-size: 0.9rem; margin-top: 4px;">{badge}</div>
+        <div style="background-color: #1e293b; padding: 14px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #334155;">
+            <div style="font-size: 1rem; color: #f1f5f9; font-weight: bold; margin-bottom: 6px;">{title}</div>
+            <div style="font-size: 1.1rem; color: #cbd5e1; margin-bottom: 8px;">
+                Cote Est. : <b style="color: #ffffff;">{fair:.2f}</b> | Book : <b style="color: #f59e0b;">{bk:.2f}</b>
+            </div>
+            <div style="background-color: #0f172a; padding: 8px; border-radius: 6px; margin-bottom: 8px;">
+                <div style="font-size: 1.05rem; color: #38bdf8; font-weight: bold;">📊 Proba Modèle : {prob_quant:.1f}%</div>
+                <div style="font-size: 1.05rem; color: #fb7185; font-weight: bold;">🏢 Proba Betclic : {prob_book:.1f}%</div>
+            </div>
+            <div>{badge}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -154,15 +154,15 @@ def display_card(title, bk, prob):
 
 m1, m2, m3 = st.columns(3)
 with m1:
-    display_card("Victoire Dom (1)", bk_1_val, p_1)
-    display_card("DNB 1", bk_dnb1_val, p_dnb1)
-    display_card("Over 2.5", bk_o25_val, p_o25)
+    display_card("Victoire Dom (1)", bk_1, p_1)
+    display_card("DNB 1", bk_dnb1, p_dnb1)
+    display_card("Over 2.5", bk_o25, p_o25)
 
 with m2:
-    display_card("Match Nul (N)", bk_N_val, p_N)
-    display_card("Under 2.5", bk_u25_val, p_u25)
+    display_card("Match Nul (N)", bk_N, p_N)
+    display_card("Under 2.5", bk_u25, p_u25)
 
 with m3:
-    display_card("Victoire Ext (2)", bk_2_val, p_2)
-    display_card("DNB 2", bk_dnb2_val, p_dnb2)
-    display_card("BTTS Oui", bk_btts_val, p_btts)
+    display_card("Victoire Ext (2)", bk_2, p_2)
+    display_card("DNB 2", bk_dnb2, p_dnb2)
+    display_card("BTTS Oui", bk_btts, p_btts)
