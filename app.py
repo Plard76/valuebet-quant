@@ -6,43 +6,39 @@ st.set_page_config(page_title="Calculateur DNB & BTTS", page_icon="⚽", layout=
 st.title("⚽ CALCULATEUR QUANT - DNB & BTTS")
 
 # ---------------------------------------------------------
-# 1. ÉTAPE 1 · ÉQUIPES (xG)
+# 1. ÉTAPE 1 · COMPACT : xG MARQUÉS & CONCÉDÉS (1 SEULE LIGNE)
 # ---------------------------------------------------------
-st.markdown("### ÉTAPE 1 · STATISTIQUES xG")
+st.markdown("##### 📝 1. STATISTIQUES xG (DOMICILE & EXTÉRIEUR)")
 
-col_dom, col_ext = st.columns(2)
+c_xg1, c_xg2, c_xg3, c_xg4 = st.columns(4)
 
-with col_dom:
-    st.markdown("**🏠 DOMICILE**")
-    xgA_m = st.number_input("BUTS MARQUÉS / MATCH", value=1.67, step=0.01, key="xgA_m")
-    xgA_c = st.number_input("BUTS ENCAISSÉS / MATCH", value=0.83, step=0.01, key="xgA_c")
-
-with col_ext:
-    st.markdown("**✈️ EXTÉRIEUR**")
-    xgB_m = st.number_input("BUTS MARQUÉS / MATCH", value=1.00, step=0.01, key="xgB_m")
-    xgB_c = st.number_input("BUTS ENCAISSÉS / MATCH", value=1.33, step=0.01, key="xgB_c")
-
-st.write("")
+with c_xg1:
+    xgA_m = st.number_input("Dom. Marqués", value=1.67, step=0.01, key="xgA_m")
+with c_xg2:
+    xgA_c = st.number_input("Dom. Concédés", value=0.83, step=0.01, key="xgA_c")
+with c_xg3:
+    xgB_m = st.number_input("Ext. Marqués", value=1.00, step=0.01, key="xgB_m")
+with c_xg4:
+    xgB_c = st.number_input("Ext. Concédés", value=1.33, step=0.01, key="xgB_c")
 
 # ---------------------------------------------------------
-# 2. ÉTAPE 2 · COTES BETCLIC (DNB & BTTS UNIQUEMENT)
+# 2. ÉTAPE 2 · COMPACT : COTES BETCLIC (DNB & BTTS EN 1 SEULE LIGNE)
 # ---------------------------------------------------------
-st.markdown("### ÉTAPE 2 · COTES BETCLIC")
+st.markdown("##### 📊 2. COTES BETCLIC (DNB & BTTS)")
 
-st.markdown("**MARCHÉ DRAW NO BET (DNB)**")
-cd1, cd2 = st.columns(2)
-bk_dnb1 = cd1.number_input("COTE DNB 1", value=1.63, step=0.01)
-bk_dnb2 = cd2.number_input("COTE DNB 2", value=1.90, step=0.01)
+c_bk1, c_bk2, c_bk3, c_bk4 = st.columns(4)
 
-st.markdown("**MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)**")
-cb1, cb2 = st.columns(2)
-bk_btts_oui = cb1.number_input("COTE BTTS OUI", value=1.49, step=0.01)
-bk_btts_non = cb2.number_input("COTE BTTS NON", value=2.33, step=0.01)
-
-st.write("")
+with c_bk1:
+    bk_dnb1 = c_bk1.number_input("Cote DNB 1", value=1.63, step=0.01, key="bk_dnb1")
+with c_bk2:
+    bk_dnb2 = c_bk2.number_input("Cote DNB 2", value=1.90, step=0.01, key="bk_dnb2")
+with c_bk3:
+    bk_btts_oui = c_bk3.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
+with c_bk4:
+    bk_btts_non = c_bk4.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
 
 # ---------------------------------------------------------
-# 3. CALCULS DU MODÈLE (DIXON-COLES / POISSON)
+# 3. CALCULS DU MODÈLE DIXON-COLES / POISSON
 # ---------------------------------------------------------
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
@@ -75,62 +71,70 @@ p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 st.divider()
 
 # ---------------------------------------------------------
-# 4. RÉSULTATS & DÉTECTION VALUEBETS
+# 4. RÉSULTATS : ESPÉRANCE DE BUTS & DÉTECTION VALUEBETS
 # ---------------------------------------------------------
 st.markdown(
     f"""
-    <div style="background-color: #111827; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 20px; border: 1px solid #374151;">
-        <div style="color: #9ca3af; font-size: 0.85rem; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px;">BUTS ATTENDUS (λ - μ)</div>
-        <div style="color: #ffffff; font-size: 2rem; font-weight: 900; font-family: monospace;">{lambda_val:.2f} — {mu_val:.2f}</div>
+    <div style="background-color: #0f172a; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 16px; border: 1px solid #334155;">
+        <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">BUTS ATTENDUS (λ - μ)</div>
+        <div style="color: #f8fafc; font-size: 1.8rem; font-weight: 900; font-family: monospace;">{lambda_val:.2f} — {mu_val:.2f}</div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-def render_pair_cards(title_left, bk_left, prob_left, title_right, bk_right, prob_right):
-    def make_card_html(title, bk, prob):
-        fair = 1 / prob if prob > 0 else 0
-        prob_quant = prob * 100
-        prob_book = (1 / bk * 100) if bk > 0 else 0
-        is_val = bk > fair and bk > 0
-        val_edge = (((bk * prob) - 1) * 100) if is_val else 0
-        is_high_conf = is_val and prob_quant >= 75.0
-        
-        if is_high_conf:
-            bg_color = "#064e3b"
-            border = "2px solid #f59e0b"
-            badge = f"""
-            <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 0.95rem; padding: 4px; border-radius: 4px; text-align: center; margin-top: 6px;">
-                🔥 ULTRA VALUE (+{val_edge:.1f}%) [> 75%]
-            </div>
-            """
-        elif is_val:
-            bg_color = "#1e4620"
-            border = "1px solid #10b981"
-            badge = f'<div style="color: #10b981; font-weight: bold; margin-top: 6px;">+{val_edge:.1f}% VALUE</div>'
-        else:
-            bg_color = "#1f2937"
-            border = "1px solid #374151"
-            badge = '<div style="color: #ef4444; font-weight: bold; margin-top: 6px;">NO VALUE</div>'
-            
-        return f"""
-        <div style="background-color: {bg_color}; border: {border}; color: #ffffff; padding: 14px; border-radius: 8px; text-align: center; margin-bottom: 10px;">
-            <div style="font-size: 0.9rem; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px;">{title}</div>
-            <div style="font-size: 2rem; font-weight: 900; margin-bottom: 6px; color: #38bdf8;">{prob_quant:.1f}%</div>
-            <div style="font-size: 0.85rem; color: #d1d5db;">Cote Betclic : <b>{bk:.2f}</b> ({prob_book:.1f}%)</div>
-            <div style="font-size: 0.85rem; color: #f59e0b; font-weight: bold; margin-top: 4px;">Cote juste mini : ≥ {fair:.2f}</div>
-            {badge}
+def build_card_html(title, bk, prob):
+    fair = 1 / prob if prob > 0 else 0
+    prob_quant = prob * 100
+    prob_book = (1 / bk * 100) if bk > 0 else 0
+    
+    is_val = bk > fair and bk > 0
+    val_edge = (((bk * prob) - 1) * 100) if is_val else 0
+    is_high_conf = is_val and prob_quant >= 75.0
+    
+    if is_high_conf:
+        bg_color = "#064e3b"
+        border = "2px solid #f59e0b"
+        badge = f"""
+        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 0.95rem; padding: 6px; border-radius: 4px; text-align: center; margin-top: 8px; box-shadow: 0 0 10px #10b981;">
+            🔥 ULTRA VALUE (+{val_edge:.1f}%) [PROBA > 75%]
         </div>
         """
+    elif is_val:
+        bg_color = "#1e4620"
+        border = "1px solid #10b981"
+        badge = f'<div style="color: #10b981; font-weight: bold; margin-top: 6px; font-size: 0.9rem;">+{val_edge:.1f}% VALUE</div>'
+    else:
+        bg_color = "#1e293b"
+        border = "1px solid #334155"
+        badge = '<div style="color: #ef4444; font-weight: bold; margin-top: 6px; font-size: 0.9rem;">NO VALUE</div>'
+        
+    return f"""
+    <div style="background-color: {bg_color}; border: {border}; color: #ffffff; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 10px;">
+        <div style="font-size: 0.85rem; font-weight: bold; letter-spacing: 1px; color: #cbd5e1; margin-bottom: 4px;">{title}</div>
+        <div style="font-size: 2.1rem; font-weight: 900; color: #38bdf8; margin-bottom: 4px;">{prob_quant:.1f}%</div>
+        <div style="font-size: 0.85rem; color: #94a3b8;">Cote Betclic : <b>{bk:.2f}</b> ({prob_book:.1f}%)</div>
+        <div style="font-size: 0.85rem; color: #f59e0b; font-weight: bold; margin-top: 4px;">Cote mini : ≥ {fair:.2f}</div>
+        {badge}
+    </div>
+    """
 
-    col_l, col_r = st.columns(2)
-    with col_l:
-        st.markdown(make_card_html(title_left, bk_left, prob_left), unsafe_allow_html=True)
-    with col_r:
-        st.markdown(make_card_html(title_right, bk_right, prob_right), unsafe_allow_html=True)
+# ---------------------------------------------------------
+# CÔTE À CÔTE : DNB
+# ---------------------------------------------------------
+st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
+col_dnb1, col_dnb2 = st.columns(2)
+with col_dnb1:
+    st.markdown(build_card_html("DNB 1", bk_dnb1, p_dnb1), unsafe_allow_html=True)
+with col_dnb2:
+    st.markdown(build_card_html("DNB 2", bk_dnb2, p_dnb2), unsafe_allow_html=True)
 
-st.markdown("#### 🎯 BILAN DRAW NO BET (DNB)")
-render_pair_cards("DNB 1", bk_dnb1, p_dnb1, "DNB 2", bk_dnb2, p_dnb2)
-
-st.markdown("#### 🎯 BILAN LES 2 ÉQUIPES MARQUENT (BTTS)")
-render_pair_cards("BTTS OUI", bk_btts_oui, p_btts_oui, "BTTS NON", bk_btts_non, p_btts_non)
+# ---------------------------------------------------------
+# CÔTE À CÔTE : BTTS
+# ---------------------------------------------------------
+st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
+col_btts1, col_btts2 = st.columns(2)
+with col_btts1:
+    st.markdown(build_card_html("BTTS OUI", bk_btts_oui, p_btts_oui), unsafe_allow_html=True)
+with col_btts2:
+    st.markdown(build_card_html("BTTS NON", bk_btts_non, p_btts_non), unsafe_allow_html=True)
