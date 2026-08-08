@@ -76,7 +76,7 @@ bk_o25 = co25.number_input("Over 2.5", value=1.95, step=0.05)
 bk_u25 = cu25.number_input("Under 2.5", value=1.85, step=0.05)
 bk_btts = cbtts.number_input("BTTS Oui", value=1.80, step=0.05)
 
-# Calculs
+# Calculs Poisson & Dixon-Coles
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
 
@@ -111,6 +111,7 @@ st.subheader("🎯 Bilan & Détection ValueBets")
 
 def display_card(title, bk, prob):
     fair = 1 / prob if prob > 0 else 0
+    prob_pct = prob * 100
     is_val = bk > fair and bk > 0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
     
@@ -124,6 +125,7 @@ def display_card(title, bk, prob):
         <div style="background-color: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #334155;">
             <div style="font-size: 0.85rem; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">{title}</div>
             <div style="font-size: 0.95rem; color: #f8fafc;">Cote Est. : <b>{fair:.2f}</b> | Book : <b>{bk:.2f}</b></div>
+            <div style="font-size: 0.8rem; color: #3b82f6; font-weight: bold; margin-top: 2px;">Proba estimée : {prob_pct:.1f}%</div>
             <div style="font-size: 0.9rem; margin-top: 4px;">{badge}</div>
         </div>
         """,
