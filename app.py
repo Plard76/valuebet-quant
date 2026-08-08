@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import math
 
 st.set_page_config(page_title="Calculateur DNB & BTTS", page_icon="⚽", layout="centered")
