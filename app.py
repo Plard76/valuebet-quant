@@ -1,61 +1,82 @@
 import streamlit as st
 import requests
+from bs4 import BeautifulSoup
 import re
 import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Calculateur Auto")
-st.caption("Modèle Poisson & Dixon-Coles alimenté par URL ou saisie")
+st.title("⚽ ValueBet Quant - Auto Scraping Multi-Marchés")
 
-# Zone de saisie / scraping
-url = st.text_input("🔗 Colle le lien du match FootyStats (facultatif) :", placeholder="https://footystats.org/fr/...")
+# Champ pour le lien
+url = st.text_input("🔗 Colle le lien du match FootyStats :", key="url_input")
 
-xg_dom_m, xg_dom_c = 2.22, 0.87
+xg_dom_m, xg_dom_c = 1.80, 0.90
 xg_ext_m, xg_ext_c = 1.00, 1.20
 
 if url:
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        res = requests.get(url, headers=headers, timeout=5)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://footystats.org/'
+        }
+        res = requests.get(url, headers=headers, timeout=8)
+        
         if res.status_code == 200:
-            decimals = re.findall(r'\b\d+[\.,]\d+\b', res.text)
-            if len(decimals) >= 4:
-                xg_dom_m = float(decimals[0].replace(',', '.'))
-                xg_dom_c = float(decimals[1].replace(',', '.'))
-                xg_ext_m = float(decimals[2].replace(',', '.'))
-                xg_ext_c = float(decimals[3].replace(',', '.'))
-                st.success("✅ Données extraites du lien avec succès !")
+            soup = BeautifulSoup(res.text, 'html.parser')
+            text = soup.get_text()
+            xg_matches = re.findall(r'(\d+[\.,]\d+)', text)
+            valid_xg = [float(x.replace(',', '.')) for x in xg_matches if 0.20 <= float(x.replace(',', '.')) <= 4.50]
+            
+            if len(valid_xg) >= 4:
+                xg_dom_m, xg_dom_c = valid_xg[0], valid_xg[1]
+                xg_ext_m, xg_ext_c = valid_xg[2], valid_xg[3]
+                st.success(f"✅ xG extraits : Dom ({xg_dom_m} / {xg_dom_c}) | Ext ({xg_ext_m} / {xg_ext_c})")
+            else:
+                st.warning("⚠️ xG non isolés automatiquement. Ajuste manuellement ci-dessous.")
+        else:
+            st.error(f"❌ Blocage du site (Code {res.status_code}). Saisie manuelle requise.")
     except Exception as e:
-        st.warning("Saisis directement les xG ci-dessous.")
+        st.error(f"❌ Erreur de lecture : {e}")
 
 st.divider()
 
-# Formulaire d'entrée des xG
+# Formulaire xG
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("🏠 Domicile")
-    xgA_m = st.number_input("xG Marqués (Dom)", value=xg_dom_m, step=0.01)
-    xgA_c = st.number_input("xG Concédés (Dom)", value=xg_dom_c, step=0.01)
+    xgA_m = st.number_input("xG Marqués (Dom)", value=xg_dom_m, step=0.01, key="xgA_m")
+    xgA_c = st.number_input("xG Concédés (Dom)", value=xg_dom_c, step=0.01, key="xgA_c")
 
 with col2:
     st.subheader("✈️ Extérieur")
-    xgB_m = st.number_input("xG Marqués (Ext)", value=xg_ext_m, step=0.01)
-    xgB_c = st.number_input("xG Concédés (Ext)", value=xg_ext_c, step=0.01)
+    xgB_m = st.number_input("xG Marqués (Ext)", value=xg_ext_m, step=0.01, key="xgB_m")
+    xgB_c = st.number_input("xG Concédés (Ext)", value=xg_ext_c, step=0.01, key="xgB_c")
 
 st.divider()
 
-# Cotes Bookmaker
+# Saisie des cotes du bookmaker
 st.subheader("📊 Cotes Bookmaker")
-c1, cN, c2 = st.columns(3)
-with c1:
-    bk_1 = st.number_input("Cote 1", value=2.10, step=0.05)
-with cN:
-    bk_N = st.number_input("Cote N", value=3.40, step=0.05)
-with c2:
-    bk_2 = st.number_input("Cote 2", value=3.80, step=0.05)
 
-# Calculs Espérances
+st.markdown("**Marché 1N2**")
+c1, cN, c2 = st.columns(3)
+bk_1 = c1.number_input("Cote 1", value=2.10, step=0.05)
+bk_N = cN.number_input("Cote N", value=3.40, step=0.05)
+bk_2 = c2.number_input("Cote 2", value=3.80, step=0.05)
+
+st.markdown("**Marché DNB (Draw No Bet)**")
+cd1, cd2 = st.columns(2)
+bk_dnb1 = cd1.number_input("DNB 1", value=1.50, step=0.05)
+bk_dnb2 = cd2.number_input("DNB 2", value=2.60, step=0.05)
+
+st.markdown("**Marché Buts & BTTS**")
+co25, cu25, cbtts = st.columns(3)
+bk_o25 = co25.number_input("Over 2.5", value=1.95, step=0.05)
+bk_u25 = cu25.number_input("Under 2.5", value=1.85, step=0.05)
+bk_btts = cbtts.number_input("BTTS Oui", value=1.80, step=0.05)
+
+# Calculs
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
 
@@ -63,13 +84,14 @@ def poisson(k, lmbda):
     return (math.pow(lmbda, k) * math.exp(-lmbda)) / math.factorial(k)
 
 p_1, p_N, p_2 = 0.0, 0.0, 0.0
+p_o25, p_btts = 0.0, 0.0
 rho = -0.13
 
 for x in range(7):
     for y in range(7):
         p = poisson(x, lambda_val) * poisson(y, mu_val)
         if x == 0 and y == 0: p *= (1 - lambda_val * mu_val * rho)
-        elif x == 1 and y == 0: p *= (1 + mu * rho) if 'mu' in locals() else p
+        elif x == 1 and y == 0: p *= (1 + mu_val * rho)
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
         elif x == 1 and y == 1: p *= (1 - rho)
 
@@ -77,14 +99,34 @@ for x in range(7):
         elif x == y: p_N += p
         else: p_2 += p
 
-fair_1 = 1 / p_1 if p_1 > 0 else 0
-fair_N = 1 / p_N if p_N > 0 else 0
-fair_2 = 1 / p_2 if p_2 > 0 else 0
+        if x + y > 2.5: p_o25 += p
+        if x > 0 and y > 0: p_btts += p
+
+p_u25 = 1 - p_o25
+p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
+p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
 st.divider()
-st.subheader("🎯 Bilan & ValueBets")
+st.subheader("🎯 Bilan & Detection ValueBets")
 
-col_res1, col_res2, col_res3 = st.columns(3)
-col_res1.metric("Victoire Dom (1)", f"Cote : {fair_1:.2f}", f"{((bk_1*p_1)-1)*100:.1f}% Value" if bk_1 > fair_1 else "No Value")
-col_res2.metric("Match Nul (N)", f"Cote : {fair_N:.2f}", f"{((bk_N*p_N)-1)*100:.1f}% Value" if bk_N > fair_N else "No Value")
-col_res3.metric("Victoire Ext (2)", f"Cote : {fair_2:.2f}", f"{((bk_2*p_2)-1)*100:.1f}% Value" if bk_2 > fair_2 else "No Value")
+def display_val(name, bk, prob):
+    fair = 1 / prob if prob > 0 else 0
+    is_val = bk > fair and bk > 0
+    val_edge = (((bk * prob) - 1) * 100) if is_val else 0
+    val_txt = f"+{val_edge:.1f}% VALUE" if is_val else "No Value"
+    st.metric(name, f"Cote Est: {fair:.2f}", val_txt)
+
+m1, m2, m3 = st.columns(3)
+with m1:
+    display_val("Victoire Dom (1)", bk_1, p_1)
+    display_val("DNB 1", bk_dnb1, p_dnb1)
+    display_val("Over 2.5", bk_o25, p_o25)
+
+with m2:
+    display_val("Match Nul (N)", bk_N, p_N)
+    display_val("Under 2.5", bk_u25, p_u25)
+
+with m3:
+    display_val("Victoire Ext (2)", bk_2, p_2)
+    display_val("DNB 2", bk_dnb2, p_dnb2)
+    display_val("BTTS Oui", bk_btts, p_btts)
