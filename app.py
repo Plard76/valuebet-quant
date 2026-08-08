@@ -4,12 +4,12 @@ import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Saisie xG & Cotes Betclic Auto")
+st.title("⚽ ValueBet Quant - Match Direct & Cotes Auto")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
 # ---------------------------------------------------------
-# 1. SAISIE RAPIDE DES 4 xG
+# 1. SAISIE DES xG
 # ---------------------------------------------------------
 st.subheader("📝 1. Entre les 4 xG")
 
@@ -27,17 +27,19 @@ with col2:
 st.divider()
 
 # ---------------------------------------------------------
-# 2. CHARGEMENT AUTOMATIQUE DE TOUTES LES COTES BETCLIC
+# 2. CHARGEMENT AUTOMATIQUE DES COTES
 # ---------------------------------------------------------
-st.subheader("⚡ 2. Cotes Betclic Automatiques")
+st.subheader("⚡ 2. Cotes Automatiques (Betclic / FR)")
 
-search_query = st.text_input("🔍 Tape le nom d'une équipe :", placeholder="ex: Guingamp, Metz, PSG, Real...")
+search_query = st.text_input("🔍 Tape le nom d'une équipe :", placeholder="ex: Guingamp, Metz, PSG...").strip()
 
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
-bk_dnb1_val, bk_dnb2_val = 1.50, 2.60
 
 if search_query:
+    # Nettoyage de la requête pour éviter les fautes
+    clean_query = search_query.rstrip('sS').lower()
+    
     sports_keys = [
         "soccer_france_ligue_one", "soccer_france_ligue_two", "soccer_epl", 
         "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga", 
@@ -47,51 +49,56 @@ if search_query:
     
     for s_key in sports_keys:
         if found: break
-        # Appel API pour le 1N2, Over/Under et BTTS
-        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts&bookmakers=betclic"
+        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts"
         try:
-            r = requests.get(odds_url)
+            r = requests.get(odds_url, timeout=5)
             data = r.json()
-            for match in data:
-                h_name = match['home_team']
-                a_name = match['away_team']
-                
-                if search_query.lower() in h_name.lower() or search_query.lower() in a_name.lower():
-                    for bm in match.get('bookmakers', []):
-                        if bm['key'] == 'betclic':
-                            for market in bm.get('markets', []):
-                                # Extraction 1N2
+            if isinstance(data, list):
+                for match in data:
+                    h_name = match['home_team']
+                    a_name = match['away_team']
+                    
+                    if clean_query in h_name.lower() or clean_query in a_name.lower():
+                        # On cherche Betclic ou le premier bookmaker disponible
+                        bookmakers = match.get('bookmakers', [])
+                        selected_bm = None
+                        
+                        for bm in bookmakers:
+                            if bm['key'] == 'betclic':
+                                selected_bm = bm
+                                break
+                        if not selected_bm and len(bookmakers) > 0:
+                            selected_bm = bookmakers[0]
+                            
+                        if selected_bm:
+                            for market in selected_bm.get('markets', []):
                                 if market['key'] == 'h2h':
                                     for o in market['outcomes']:
                                         if o['name'] == h_name: bk_1_val = float(o['price'])
                                         elif o['name'] == a_name: bk_2_val = float(o['price'])
                                         else: bk_N_val = float(o['price'])
-                                # Extraction Over / Under 2.5
                                 elif market['key'] == 'totals':
                                     for o in market['outcomes']:
                                         if o.get('point') == 2.5:
                                             if o['name'] == 'Over': bk_o25_val = float(o['price'])
                                             elif o['name'] == 'Under': bk_u25_val = float(o['price'])
-                                # Extraction BTTS
                                 elif market['key'] == 'btts':
                                     for o in market['outcomes']:
                                         if o['name'] == 'Yes': bk_btts_val = float(o['price'])
 
-                            # Estimation automatique des DNB si non fournis par l'API
-                            bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2)
-                            bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2)
-
-                            st.success(f"🎯 Toutes les cotes Betclic ont été chargées pour **{h_name} vs {a_name}** !")
+                            st.success(f"🎯 Cotes chargées ({selected_bm['title']}) pour **{h_name} vs {a_name}** !")
                             found = True
                             break
         except Exception:
             pass
             
     if not found:
-        st.warning("Match non trouvé sur Betclic. Vérifie l'orthographe de l'équipe.")
+        st.warning("Match non trouvé dans l'API. Ajuste le nom de l'équipe (ex: Guingamp au lieu de Guingamps).")
 
-# Affichage informatif des cotes Betclic récupérées
-st.caption(f"Cotes Betclic chargées : 1N2 ({bk_1_val} / {bk_N_val} / {bk_2_val}) | O/U 2.5 ({bk_o25_val} / {bk_u25_val}) | BTTS ({bk_btts_val})")
+bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 1.50
+bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 2.60
+
+st.caption(f"Cotes chargées : 1N2 ({bk_1_val} / {bk_N_val} / {bk_2_val}) | O/U 2.5 ({bk_o25_val} / {bk_u25_val}) | BTTS ({bk_btts_val})")
 
 # ---------------------------------------------------------
 # 3. CALCULS MODÈLE DIXON-COLES
