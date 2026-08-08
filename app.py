@@ -139,14 +139,26 @@ def display_card(title, bk, prob):
     is_val = bk > fair and bk > 0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
     
-    if is_val:
+    # Condition spéciale pour Proba > 75% ET ValueBet
+    is_high_conf = is_val and prob_quant >= 75.0
+    
+    if is_high_conf:
+        card_bg = "background-color: #064e3b; border: 2px solid #f59e0b;"
+        badge = f"""
+        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.15rem; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px; box-shadow: 0 0 10px #10b981;">
+            🔥 ULTRA VALUE (+{val_edge:.1f}%) [PROBA > 75%]
+        </div>
+        """
+    elif is_val:
+        card_bg = "background-color: #1e293b; border: 1px solid #334155;"
         badge = f'<span style="color: #10b981; font-weight: bold; font-size: 1.1rem;">+{val_edge:.1f}% VALUE</span>'
     else:
+        card_bg = "background-color: #1e293b; border: 1px solid #334155;"
         badge = '<span style="color: #ef4444; font-weight: bold; font-size: 1.1rem;">NO VALUE</span>'
         
     st.markdown(
         f"""
-        <div style="background-color: #1e293b; padding: 14px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #334155;">
+        <div style="{card_bg} padding: 14px; border-radius: 10px; margin-bottom: 12px;">
             <div style="font-size: 1rem; color: #f1f5f9; font-weight: bold; margin-bottom: 6px;">{title}</div>
             <div style="font-size: 1.1rem; color: #cbd5e1; margin-bottom: 8px;">
                 Cote Est. : <b style="color: #ffffff;">{fair:.2f}</b> | Book : <b style="color: #f59e0b;">{bk:.2f}</b>
