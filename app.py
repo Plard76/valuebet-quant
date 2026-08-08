@@ -3,40 +3,25 @@ import math
 
 st.set_page_config(page_title="DNB & BTTS", page_icon="⚽", layout="centered")
 
-# Suppression totale des contraintes de largeur et de marges de Streamlit
-st.markdown("""
+# CSS responsive pur
+st.html("""
 <style>
-    /* Forcer l'application à coller aux bords de l'écran du téléphone */
-    .block-container {
-        padding-left: 4px !important;
-        padding-right: 4px !important;
-        padding-top: 4px !important;
-        padding-bottom: 4px !important;
-        max-width: 100vw !important;
-    }
+    .block-container { padding: 4px !important; max-width: 100vw !important; }
     header, footer, [data-testid="stHeader"] { display: none !important; }
+    div[data-testid="stVerticalBlock"] > div { gap: 2px !important; }
     
-    /* Nettoyage des espaces entre les lignes */
-    div[data-testid="stVerticalBlock"] > div {
-        gap: 2px !important;
-    }
-    
-    /* Style des inputs texte ultra-courts */
     .stTextInput div div input {
         text-align: center !important;
         font-weight: bold !important;
         padding: 1px !important;
         font-size: 0.8rem !important;
         height: 28px !important;
-        min-height: 28px !important;
     }
     .stTextInput label {
         font-size: 0.65rem !important;
         margin-bottom: 0px !important;
         color: #94a3b8 !important;
     }
-    
-    /* Verrouillage strict des 2 colonnes à 50% de l'écran */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -51,28 +36,28 @@ st.markdown("""
         padding: 0px 1px !important;
     }
 </style>
-""", unsafe_allow_html=True)
+""")
 
-st.markdown("<div style='text-align:center; font-weight:bold; color:#f8fafc; font-size:0.9rem; margin-bottom:4px;'>⚽ CALCULATEUR DNB & BTTS</div>", unsafe_allow_html=True)
+st.html("<div style='text-align:center; font-weight:bold; color:#f8fafc; font-size:0.9rem;'>⚽ CALCULATEUR DNB & BTTS</div>")
 
 # ---------------------------------------------------------
-# 1. SAISIE STATISTIQUES xG (ÉCRAN SÉPARÉ À 50/50)
+# 1. SAISIE STATISTIQUES xG
 # ---------------------------------------------------------
 col_dom, col_ext = st.columns(2)
 with col_dom:
-    st.markdown("<div style='font-size:0.68rem; font-weight:bold; color:#38bdf8;'>🏠 DOMICILE</div>", unsafe_allow_html=True)
+    st.html("<div style='font-size:0.68rem; font-weight:bold; color:#38bdf8;'>🏠 DOMICILE</div>")
     xgA_m_str = st.text_input("Marqués", value="1.67", key="xgA_m")
     xgA_c_str = st.text_input("Concédés", value="0.83", key="xgA_c")
 
 with col_ext:
-    st.markdown("<div style='font-size:0.68rem; font-weight:bold; color:#fb7185;'>✈️ EXTÉRIEUR</div>", unsafe_allow_html=True)
+    st.html("<div style='font-size:0.68rem; font-weight:bold; color:#fb7185;'>✈️ EXTÉRIEUR</div>")
     xgB_m_str = st.text_input("Marqués", value="1.00", key="xgB_m")
     xgB_c_str = st.text_input("Concédés", value="1.33", key="xgB_c")
 
 # ---------------------------------------------------------
-# 2. COTES BETCLIC (ÉCRAN SÉPARÉ À 50/50)
+# 2. COTES BETCLIC
 # ---------------------------------------------------------
-st.markdown("<div style='font-size:0.68rem; font-weight:bold; color:#f59e0b; margin-top:2px;'>📊 COTES BETCLIC</div>", unsafe_allow_html=True)
+st.html("<div style='font-size:0.68rem; font-weight:bold; color:#f59e0b;'>📊 COTES BETCLIC</div>")
 col_c1, col_c2 = st.columns(2)
 with col_c1:
     bk_dnb1_str = st.text_input("DNB 1", value="1.63", key="bk_dnb1")
@@ -81,7 +66,7 @@ with col_c2:
     bk_dnb2_str = st.text_input("DNB 2", value="1.90", key="bk_dnb2")
     bk_btts_non_str = st.text_input("BTTS Non", value="2.33", key="bk_btts_non")
 
-# Conversions sécurisées
+# Conversions
 try: xgA_m = float(xgA_m_str)
 except: xgA_m = 0.0
 try: xgA_c = float(xgA_c_str)
@@ -132,9 +117,9 @@ p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
 # ---------------------------------------------------------
-# 4. RÉSULTATS (TIEIN PARFAITEMENT DANS LA LARGEUR)
+# 4. CARTE DE RÉSULTAT
 # ---------------------------------------------------------
-def make_card_data(title, bk, prob):
+def render_card(title, bk, prob):
     fair = 1 / prob if prob > 0 else 0
     prob_quant = prob * 100
     prob_book = (1 / bk * 100) if bk > 0 else 0
@@ -152,35 +137,29 @@ def make_card_data(title, bk, prob):
         bg, bd = "#1e293b", "1px solid #334155"
         badge = '<div style="color:#ef4444; font-weight:bold; margin-top:2px; font-size:0.6rem;">NO VALUE</div>'
 
-    return f"""
-    <div style="flex: 1 1 50%; width:50%; background:{bg}; border:{bd}; color:#fff; padding:4px 2px; border-radius:4px; text-align:center; box-sizing:border-box;">
+    st.html(f"""
+    <div style="background:{bg}; border:{bd}; color:#fff; padding:4px 2px; border-radius:4px; text-align:center;">
         <div style="font-size:0.65rem; font-weight:bold; color:#cbd5e1;">{title}</div>
         <div style="font-size:1.05rem; font-weight:900; color:#38bdf8; line-height:1;">{prob_quant:.1f}%</div>
         <div style="font-size:0.58rem; color:#94a3b8;">Book: <b>{bk:.2f}</b> ({prob_book:.0f}%)</div>
         <div style="font-size:0.58rem; color:#f59e0b; font-weight:bold;">Mini: ≥ {fair:.2f}</div>
         {badge}
     </div>
-    """
+    """)
 
-html_results = f"""
-<div style="width:100%; box-sizing:border-box; margin-top:2px;">
-    <div style="background:#0f172a; padding:2px 4px; border-radius:4px; text-align:center; margin-bottom:4px; border:1px solid #334155;">
-        <span style="color:#94a3b8; font-size:0.62rem; font-weight:bold;">xG ATTENDUS : </span>
-        <span style="color:#f8fafc; font-size:0.8rem; font-weight:900; font-family:monospace;">{lambda_val:.2f} — {mu_val:.2f}</span>
-    </div>
-
-    <div style="font-size:0.65rem; font-weight:bold; color:#f1f5f9; margin-bottom:1px;">🎯 DNB</div>
-    <div style="display:flex; gap:2px; width:100%; margin-bottom:3px;">
-        {make_card_data("DNB 1", bk_dnb1, p_dnb1)}
-        {make_card_data("DNB 2", bk_dnb2, p_dnb2)}
-    </div>
-
-    <div style="font-size:0.65rem; font-weight:bold; color:#f1f5f9; margin-bottom:1px;">🎯 BTTS</div>
-    <div style="display:flex; gap:2px; width:100%;">
-        {make_card_data("BTTS OUI", bk_btts_oui, p_btts_oui)}
-        {make_card_data("BTTS NON", bk_btts_non, p_btts_non)}
-    </div>
+st.html(f"""
+<div style="background:#0f172a; padding:2px 4px; border-radius:4px; text-align:center; border:1px solid #334155;">
+    <span style="color:#94a3b8; font-size:0.62rem; font-weight:bold;">xG ATTENDUS : </span>
+    <span style="color:#f8fafc; font-size:0.8rem; font-weight:900; font-family:monospace;">{lambda_val:.2f} — {mu_val:.2f}</span>
 </div>
-"""
+""")
 
-st.markdown(html_results, unsafe_allow_html=True)
+st.html("<div style='font-size:0.65rem; font-weight:bold; color:#f1f5f9;'>🎯 DNB</div>")
+c_d1, c_d2 = st.columns(2)
+with c_d1: render_card("DNB 1", bk_dnb1, p_dnb1)
+with c_d2: render_card("DNB 2", bk_dnb2, p_dnb2)
+
+st.html("<div style='font-size:0.65rem; font-weight:bold; color:#f1f5f9;'>🎯 BTTS</div>")
+c_b1, c_b2 = st.columns(2)
+with c_b1: render_card("BTTS OUI", bk_btts_oui, p_btts_oui)
+with c_b2: render_card("BTTS NON", bk_btts_non, p_btts_non)
