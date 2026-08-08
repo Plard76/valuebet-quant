@@ -1,85 +1,56 @@
 import streamlit as st
-import cloudscraper
-from bs4 import BeautifulSoup
-import re
+import requests
 import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Match Direct & Cotes Betclic")
+st.title("⚽ ValueBet Quant - Saisie xG & Cotes Betclic Auto")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
 # ---------------------------------------------------------
-# 1. SCRAPING xG AVEC CLOUDSCRAPER (ANTI-BLOCAGE)
+# 1. SAISIE RAPIDE DES 4 xG
 # ---------------------------------------------------------
-url = st.text_input("🔗 Colle le lien du match FootyStats :", key="url_input")
+st.subheader("📝 1. Entre les 4 xG")
 
-xg_dom_m, xg_dom_c = 1.80, 0.90
-xg_ext_m, xg_ext_c = 1.00, 1.20
-
-if url:
-    try:
-        # Utilisation de cloudscraper pour passer Cloudflare
-        scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'android', 'desktop': False})
-        res = scraper.get(url)
-        
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            text = soup.get_text()
-            
-            # Extraction des xG
-            xg_matches = re.findall(r'(\d+[\.,]\d+)', text)
-            valid_xg = [float(x.replace(',', '.')) for x in xg_matches if 0.20 <= float(x.replace(',', '.')) <= 4.50]
-            
-            if len(valid_xg) >= 4:
-                xg_dom_m, xg_dom_c = valid_xg[0], valid_xg[1]
-                xg_ext_m, xg_ext_c = valid_xg[2], valid_xg[3]
-                st.success(f"✅ xG extraits : Dom ({xg_dom_m} / {xg_dom_c}) | Ext ({xg_ext_m} / {xg_ext_c})")
-            else:
-                st.warning("⚠️ xG non isolés automatiquement sur ce lien. Ajuste manuellement ci-dessous.")
-        else:
-            st.error(f"❌ Blocage temporaire (Code {res.status_code}). Saisie manuelle requise.")
-    except Exception as e:
-        st.error(f"❌ Erreur de lecture : {e}")
-
-st.divider()
-
-# Formulaire xG
 col1, col2 = st.columns(2)
 with col1:
-    st.subheader("🏠 Domicile")
-    xgA_m = st.number_input("xG Marqués (Dom)", value=xg_dom_m, step=0.01, key="xgA_m")
-    xgA_c = st.number_input("xG Concédés (Dom)", value=xg_dom_c, step=0.01, key="xgA_c")
+    st.markdown("**🏠 Domicile**")
+    xgA_m = st.number_input("xG Marqués (Dom)", value=1.80, step=0.01, key="xgA_m")
+    xgA_c = st.number_input("xG Concédés (Dom)", value=0.90, step=0.01, key="xgA_c")
 
 with col2:
-    st.subheader("✈️ Extérieur")
-    xgB_m = st.number_input("xG Marqués (Ext)", value=xg_ext_m, step=0.01, key="xgB_m")
-    xgB_c = st.number_input("xG Concédés (Ext)", value=xg_ext_c, step=0.01, key="xgB_c")
+    st.markdown("**✈️ Extérieur**")
+    xgB_m = st.number_input("xG Marqués (Ext)", value=1.00, step=0.01, key="xgB_m")
+    xgB_c = st.number_input("xG Concédés (Ext)", value=1.20, step=0.01, key="xgB_c")
 
 st.divider()
 
 # ---------------------------------------------------------
-# 2. RECHERCHE EN DIRECT DES COTES BETCLIC POUR CE MATCH
+# 2. CHARGEMENT AUTOMATIQUE DE TOUTES LES COTES BETCLIC
 # ---------------------------------------------------------
-st.subheader("📊 Cotes Betclic en Direct")
+st.subheader("⚡ 2. Cotes Betclic Automatiques")
+
+search_query = st.text_input("🔍 Tape le nom d'une équipe :", placeholder="ex: Guingamp, Metz, PSG, Real...")
 
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
-search_query = st.text_input("🔍 Recherche une équipe sur Betclic :", placeholder="ex: PSG, Houston Dynamo...")
+bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
+bk_dnb1_val, bk_dnb2_val = 1.50, 2.60
 
 if search_query:
     sports_keys = [
-        "soccer_france_ligue_one", "soccer_epl", "soccer_spain_la_liga", 
-        "soccer_italy_serie_a", "soccer_germany_bundesliga", "soccer_uefa_champs_league",
-        "soccer_usa_mls"
+        "soccer_france_ligue_one", "soccer_france_ligue_two", "soccer_epl", 
+        "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga", 
+        "soccer_uefa_champs_league", "soccer_usa_mls"
     ]
     found = False
     
     for s_key in sports_keys:
         if found: break
-        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h&bookmakers=betclic"
+        # Appel API pour le 1N2, Over/Under et BTTS
+        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts&bookmakers=betclic"
         try:
-            r = scraper.get(odds_url)
+            r = requests.get(odds_url)
             data = r.json()
             for match in data:
                 h_name = match['home_team']
@@ -88,36 +59,39 @@ if search_query:
                 if search_query.lower() in h_name.lower() or search_query.lower() in a_name.lower():
                     for bm in match.get('bookmakers', []):
                         if bm['key'] == 'betclic':
-                            outcomes = bm['markets'][0]['outcomes']
-                            for o in outcomes:
-                                if o['name'] == h_name: bk_1_val = float(o['price'])
-                                elif o['name'] == a_name: bk_2_val = float(o['price'])
-                                else: bk_N_val = float(o['price'])
-                            st.success(f"🎯 Cotes Betclic trouvées pour {h_name} vs {a_name} !")
+                            for market in bm.get('markets', []):
+                                # Extraction 1N2
+                                if market['key'] == 'h2h':
+                                    for o in market['outcomes']:
+                                        if o['name'] == h_name: bk_1_val = float(o['price'])
+                                        elif o['name'] == a_name: bk_2_val = float(o['price'])
+                                        else: bk_N_val = float(o['price'])
+                                # Extraction Over / Under 2.5
+                                elif market['key'] == 'totals':
+                                    for o in market['outcomes']:
+                                        if o.get('point') == 2.5:
+                                            if o['name'] == 'Over': bk_o25_val = float(o['price'])
+                                            elif o['name'] == 'Under': bk_u25_val = float(o['price'])
+                                # Extraction BTTS
+                                elif market['key'] == 'btts':
+                                    for o in market['outcomes']:
+                                        if o['name'] == 'Yes': bk_btts_val = float(o['price'])
+
+                            # Estimation automatique des DNB si non fournis par l'API
+                            bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2)
+                            bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2)
+
+                            st.success(f"🎯 Toutes les cotes Betclic ont été chargées pour **{h_name} vs {a_name}** !")
                             found = True
                             break
         except Exception:
             pass
             
     if not found:
-        st.warning("Aucun match correspondant trouvé chez Betclic.")
+        st.warning("Match non trouvé sur Betclic. Vérifie l'orthographe de l'équipe.")
 
-st.markdown("**Marché 1N2**")
-c1, cN, c2 = st.columns(3)
-bk_1 = c1.number_input("Cote 1", value=bk_1_val, step=0.05)
-bk_N = cN.number_input("Cote N", value=bk_N_val, step=0.05)
-bk_2 = c2.number_input("Cote 2", value=bk_2_val, step=0.05)
-
-st.markdown("**Marché DNB (Draw No Bet)**")
-cd1, cd2 = st.columns(2)
-bk_dnb1 = cd1.number_input("DNB 1", value=1.50, step=0.05)
-bk_dnb2 = cd2.number_input("DNB 2", value=2.60, step=0.05)
-
-st.markdown("**Marché Buts & BTTS**")
-co25, cu25, cbtts = st.columns(3)
-bk_o25 = co25.number_input("Over 2.5", value=1.95, step=0.05)
-bk_u25 = cu25.number_input("Under 2.5", value=1.85, step=0.05)
-bk_btts = cbtts.number_input("BTTS Oui", value=1.80, step=0.05)
+# Affichage informatif des cotes Betclic récupérées
+st.caption(f"Cotes Betclic chargées : 1N2 ({bk_1_val} / {bk_N_val} / {bk_2_val}) | O/U 2.5 ({bk_o25_val} / {bk_u25_val}) | BTTS ({bk_btts_val})")
 
 # ---------------------------------------------------------
 # 3. CALCULS MODÈLE DIXON-COLES
@@ -179,15 +153,15 @@ def display_card(title, bk, prob):
 
 m1, m2, m3 = st.columns(3)
 with m1:
-    display_card("Victoire Dom (1)", bk_1, p_1)
-    display_card("DNB 1", bk_dnb1, p_dnb1)
-    display_card("Over 2.5", bk_o25, p_o25)
+    display_card("Victoire Dom (1)", bk_1_val, p_1)
+    display_card("DNB 1", bk_dnb1_val, p_dnb1)
+    display_card("Over 2.5", bk_o25_val, p_o25)
 
 with m2:
-    display_card("Match Nul (N)", bk_N, p_N)
-    display_card("Under 2.5", bk_u25, p_u25)
+    display_card("Match Nul (N)", bk_N_val, p_N)
+    display_card("Under 2.5", bk_u25_val, p_u25)
 
 with m3:
-    display_card("Victoire Ext (2)", bk_2, p_2)
-    display_card("DNB 2", bk_dnb2, p_dnb2)
-    display_card("BTTS Oui", bk_btts, p_btts)
+    display_card("Victoire Ext (2)", bk_2_val, p_2)
+    display_card("DNB 2", bk_dnb2_val, p_dnb2)
+    display_card("BTTS Oui", bk_btts_val, p_btts)
