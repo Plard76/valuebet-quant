@@ -4,9 +4,18 @@ import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Match Direct & Cotes Auto")
+st.title("⚽ ValueBet Quant - Matchs Direct & Cotes")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
+
+# Alias couramment utilisés
+ALIASES = {
+    "psg": "paris",
+    "om": "marseille",
+    "ol": "lyon",
+    "asse": "etienne",
+    "rca": "strasbourg"
+}
 
 # ---------------------------------------------------------
 # 1. SAISIE DES xG
@@ -27,23 +36,23 @@ with col2:
 st.divider()
 
 # ---------------------------------------------------------
-# 2. CHARGEMENT AUTOMATIQUE DES COTES
+# 2. SELECTION OU RECHERCHE DE MATCH
 # ---------------------------------------------------------
-st.subheader("⚡ 2. Cotes Automatiques (Betclic / FR)")
-
-search_query = st.text_input("🔍 Tape le nom d'une équipe :", placeholder="ex: Guingamp, Metz, PSG...").strip()
+st.subheader("⚡ 2. Cotes Automatiques (Betclic / Bookmakers)")
 
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
 
+search_query = st.text_input("🔍 Tape le nom d'une équipe (ex: Paris, Guingamp, Nantes...) :", placeholder="ex: Paris, Nantes, Real...").strip().lower()
+
 if search_query:
-    # Nettoyage de la requête pour éviter les fautes
-    clean_query = search_query.rstrip('sS').lower()
+    # Remplacement des sigles
+    search_term = ALIASES.get(search_query, search_query)
     
     sports_keys = [
         "soccer_france_ligue_one", "soccer_france_ligue_two", "soccer_epl", 
         "soccer_spain_la_liga", "soccer_italy_serie_a", "soccer_germany_bundesliga", 
-        "soccer_uefa_champs_league", "soccer_usa_mls"
+        "soccer_uefa_champs_league", "soccer_usa_mls", "soccer_brazil_campeonato"
     ]
     found = False
     
@@ -58,8 +67,7 @@ if search_query:
                     h_name = match['home_team']
                     a_name = match['away_team']
                     
-                    if clean_query in h_name.lower() or clean_query in a_name.lower():
-                        # On cherche Betclic ou le premier bookmaker disponible
+                    if search_term in h_name.lower() or search_term in a_name.lower():
                         bookmakers = match.get('bookmakers', [])
                         selected_bm = None
                         
@@ -86,14 +94,14 @@ if search_query:
                                     for o in market['outcomes']:
                                         if o['name'] == 'Yes': bk_btts_val = float(o['price'])
 
-                            st.success(f"🎯 Cotes chargées ({selected_bm['title']}) pour **{h_name} vs {a_name}** !")
+                            st.success(f"🎯 Match trouvé : **{h_name} vs {a_name}** ({selected_bm['title']})")
                             found = True
                             break
         except Exception:
             pass
             
     if not found:
-        st.warning("Match non trouvé dans l'API. Ajuste le nom de l'équipe (ex: Guingamp au lieu de Guingamps).")
+        st.warning(f"Aucun match trouvé pour '{search_query}'. Essaie le nom de la ville (ex: 'Paris' au lieu de 'PSG').")
 
 bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 1.50
 bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 2.60
