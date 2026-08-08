@@ -107,26 +107,40 @@ p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
 st.divider()
-st.subheader("🎯 Bilan & Detection ValueBets")
+st.subheader("🎯 Bilan & Détection ValueBets")
 
-def display_val(name, bk, prob):
+def display_card(title, bk, prob):
     fair = 1 / prob if prob > 0 else 0
     is_val = bk > fair and bk > 0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
-    val_txt = f"+{val_edge:.1f}% VALUE" if is_val else "No Value"
-    st.metric(name, f"Cote Est: {fair:.2f}", val_txt)
+    
+    if is_val:
+        badge = f'<span style="color: #10b981; font-weight: bold;">+{val_edge:.1f}% VALUE</span>'
+    else:
+        badge = '<span style="color: #ef4444; font-weight: bold;">NO VALUE</span>'
+        
+    st.markdown(
+        f"""
+        <div style="background-color: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #334155;">
+            <div style="font-size: 0.85rem; color: #94a3b8; font-weight: bold; margin-bottom: 4px;">{title}</div>
+            <div style="font-size: 0.95rem; color: #f8fafc;">Cote Est. : <b>{fair:.2f}</b> | Book : <b>{bk:.2f}</b></div>
+            <div style="font-size: 0.9rem; margin-top: 4px;">{badge}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 m1, m2, m3 = st.columns(3)
 with m1:
-    display_val("Victoire Dom (1)", bk_1, p_1)
-    display_val("DNB 1", bk_dnb1, p_dnb1)
-    display_val("Over 2.5", bk_o25, p_o25)
+    display_card("Victoire Dom (1)", bk_1, p_1)
+    display_card("DNB 1", bk_dnb1, p_dnb1)
+    display_card("Over 2.5", bk_o25, p_o25)
 
 with m2:
-    display_val("Match Nul (N)", bk_N, p_N)
-    display_val("Under 2.5", bk_u25, p_u25)
+    display_card("Match Nul (N)", bk_N, p_N)
+    display_card("Under 2.5", bk_u25, p_u25)
 
 with m3:
-    display_val("Victoire Ext (2)", bk_2, p_2)
-    display_val("DNB 2", bk_dnb2, p_dnb2)
-    display_val("BTTS Oui", bk_btts, p_btts)
+    display_card("Victoire Ext (2)", bk_2, p_2)
+    display_card("DNB 2", bk_dnb2, p_dnb2)
+    display_card("BTTS Oui", bk_btts, p_btts)
