@@ -6,7 +6,7 @@ st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centere
 st.title("⚽ ValueBet Quant - Modèle Dixon-Coles")
 
 # ---------------------------------------------------------
-# 1. PAR-TIE xG (GRILLE 2x2 : DOMICILE A GAUCHE / EXTERIEUR A DROITE)
+# 1. PAR-TIE xG (GRILLE 2x2 STRICTE)
 # ---------------------------------------------------------
 st.subheader("📝 1. Statistiques xG")
 
@@ -30,7 +30,7 @@ st.divider()
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
 
-st.subheader("📊 2. Espérance de Buts (Poisson / Dixon-Coles)")
+st.subheader("📊 2. Résultat du calcul de Poisson (Espérance de Buts)")
 
 col_p1, col_p2 = st.columns(2)
 with col_p1:
@@ -47,24 +47,24 @@ st.subheader("📊 3. Cotes Betclic")
 
 st.markdown("**Résultat du match (1N2)**")
 c1, cN, c2 = st.columns(3)
-bk_1 = c1.number_input("1 (Dom)", value=2.28, step=0.01)
-bk_N = cN.number_input("N (Nul)", value=3.30, step=0.01)
-bk_2 = c2.number_input("2 (Ext)", value=2.77, step=0.01)
+bk_1 = c1.number_input("1 (Dom)", value=2.28, step=0.01, key="bk_1")
+bk_N = cN.number_input("N (Nul)", value=3.30, step=0.01, key="bk_N")
+bk_2 = c2.number_input("2 (Ext)", value=2.77, step=0.01, key="bk_2")
 
 st.markdown("**Remboursé si match nul (DNB)**")
 cd1, cd2 = st.columns(2)
-bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01)
-bk_dnb2 = cd2.number_input("DNB 2", value=1.90, step=0.01)
+bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01, key="bk_dnb1")
+bk_dnb2 = cd2.number_input("DNB 2", value=1.90, step=0.01, key="bk_dnb2")
 
 st.markdown("**Nombre total de buts (2.5)**")
 co25, cu25 = st.columns(2)
-bk_o25 = co25.number_input("+ de 2.5", value=1.70, step=0.01)
-bk_u25 = cu25.number_input("- de 2.5", value=1.95, step=0.01)
+bk_o25 = co25.number_input("+ de 2.5", value=1.70, step=0.01, key="bk_o25")
+bk_u25 = cu25.number_input("- de 2.5", value=1.95, step=0.01, key="bk_u25")
 
 st.markdown("**Les 2 équipes marquent (BTTS)**")
 cbtts_oui, cbtts_non = st.columns(2)
-bk_btts_oui = cbtts_oui.number_input("Oui", value=1.59, step=0.01)
-bk_btts_non = cbtts_non.number_input("Non", value=2.13, step=0.01)
+bk_btts_oui = cbtts_oui.number_input("Oui", value=1.59, step=0.01, key="bk_btts_oui")
+bk_btts_non = cbtts_non.number_input("Non", value=2.13, step=0.01, key="bk_btts_non")
 
 # ---------------------------------------------------------
 # 4. CALCUL DES PROBABILITÉS DIXON-COLES
