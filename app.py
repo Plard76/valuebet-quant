@@ -4,7 +4,7 @@ import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Cotes Direct")
+st.title("⚽ ValueBet Quant - Auto Cotes Betclic")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
@@ -27,13 +27,12 @@ with col2:
 st.divider()
 
 # ---------------------------------------------------------
-# 2. SELECTION DU MATCH PAR LIGUE
+# 2. CHARGEMENT AUTOMATIQUE DES COTES VIA L'API
 # ---------------------------------------------------------
-st.subheader("⚡ 2. Charger les Cotes")
+st.subheader("⚡ 2. Cotes Automatiques")
 
 leagues = {
     "Ligue 1": "soccer_france_ligue_one",
-    "Ligue 2": "soccer_france_ligue_two",
     "Premier League": "soccer_epl",
     "La Liga": "soccer_spain_la_liga",
     "Serie A": "soccer_italy_serie_a",
@@ -47,53 +46,46 @@ selected_league = st.selectbox("Sélectionne la compétition :", list(leagues.ke
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
 
-@st.cache_data(ttl=120)
-def get_league_matches(league_key):
-    odds_url = f"https://api.the-odds-api.com/v4/sports/{league_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts"
-    try:
-        r = requests.get(odds_url, timeout=5)
+league_key = leagues[selected_league]
+odds_url = f"https://api.the-odds-api.com/v4/sports/{league_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h"
+
+try:
+    r = requests.get(odds_url, timeout=5)
+    if r.status_code == 200:
         data = r.json()
-        if isinstance(data, list):
-            return {f"{m['home_team']} vs {m['away_team']}": m for m in data}
-    except Exception:
-        pass
-    return {}
-
-matches = get_league_matches(leagues[selected_league])
-
-if matches:
-    selected_match_label = st.selectbox("Choisis le match :", ["-- Sélectionner --"] + list(matches.keys()))
-    if selected_match_label != "-- Sélectionner --":
-        m_data = matches[selected_match_label]
-        h_name = m_data['home_team']
-        a_name = m_data['away_team']
-        
-        bookmakers = m_data.get('bookmakers', [])
-        bm = next((b for b in bookmakers if b['key'] == 'betclic'), bookmakers[0] if bookmakers else None)
-        
-        if bm:
-            for market in bm.get('markets', []):
-                if market['key'] == 'h2h':
-                    for o in market['outcomes']:
-                        if o['name'] == h_name: bk_1_val = float(o['price'])
-                        elif o['name'] == a_name: bk_2_val = float(o['price'])
-                        else: bk_N_val = float(o['price'])
-                elif market['key'] == 'totals':
-                    for o in market['outcomes']:
-                        if o.get('point') == 2.5:
-                            if o['name'] == 'Over': bk_o25_val = float(o['price'])
-                            elif o['name'] == 'Under': bk_u25_val = float(o['price'])
-                elif market['key'] == 'btts':
-                    for o in market['outcomes']:
-                        if o['name'] == 'Yes': bk_btts_val = float(o['price'])
-            st.success(f"🎯 Cotes réelles appliquées ({bm['title']})")
-else:
-    st.warning("Aucun match à venir disponible actuellement pour cette ligue.")
+        if isinstance(data, list) and len(data) > 0:
+            matches_dict = {f"{m['home_team']} vs {m['away_team']}": m for m in data}
+            selected_match = st.selectbox("Choisis le match :", ["-- Sélectionner --"] + list(matches_dict.keys()))
+            
+            if selected_match != "-- Sélectionner --":
+                m_data = matches_dict[selected_match]
+                h_name = m_data['home_team']
+                a_name = m_data['away_team']
+                
+                bookmakers = m_data.get('bookmakers', [])
+                bm = next((b for b in bookmakers if b['key'] == 'betclic'), bookmakers[0] if bookmakers else None)
+                
+                if bm:
+                    for market in bm.get('markets', []):
+                        if market['key'] == 'h2h':
+                            for o in market['outcomes']:
+                                if o['name'] == h_name: bk_1_val = float(o['price'])
+                                elif o['name'] == a_name: bk_2_val = float(o['price'])
+                                else: bk_N_val = float(o['price'])
+                    st.success(f"🎯 Cotes chargées depuis **{bm['title']}** !")
+        else:
+            st.info("Aucun match à venir coté pour cette compétition actuellement.")
+    elif r.status_code == 401:
+        st.error("❌ Clé API non reconnue.")
+    else:
+        st.warning(f"⚠️ Code réponse API : {r.status_code}")
+except Exception as e:
+    st.error(f"Erreur de connexion : {e}")
 
 bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 1.50
 bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 2.60
 
-st.caption(f"Cotes appliquées : 1N2 ({bk_1_val} / {bk_N_val} / {bk_2_val}) | O/U 2.5 ({bk_o25_val} / {bk_u25_val}) | BTTS ({bk_btts_val})")
+st.divider()
 
 # ---------------------------------------------------------
 # 3. CALCULS MODÈLE DIXON-COLES
@@ -127,7 +119,6 @@ p_u25 = 1 - p_o25
 p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 
-st.divider()
 st.subheader("🎯 Bilan & Détection ValueBets")
 
 def display_card(title, bk, prob):
