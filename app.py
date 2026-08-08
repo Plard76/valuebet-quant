@@ -4,7 +4,7 @@ import math
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Cotes Betclic & FR")
+st.title("⚽ ValueBet Quant - Auto Cotes Betclic")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
@@ -32,24 +32,23 @@ st.divider()
 st.subheader("⚡ 2. Cotes Automatiques")
 
 leagues = {
+    "MLS (USA)": "soccer_usa_mls",
     "Ligue 1": "soccer_france_ligue_one",
     "Premier League": "soccer_epl",
     "La Liga": "soccer_spain_la_liga",
     "Serie A": "soccer_italy_serie_a",
     "Bundesliga": "soccer_germany_bundesliga",
-    "Ligue des Champions": "soccer_uefa_champs_league",
-    "MLS (USA)": "soccer_usa_mls"
+    "Ligue des Champions": "soccer_uefa_champs_league"
 }
 
 selected_league = st.selectbox("Sélectionne la compétition :", list(leagues.keys()))
 
+# Cotes par défaut
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
 
 league_key = leagues[selected_league]
-
-# Requête ciblant en priorité Betclic, Unibet et Winamax
-odds_url = f"https://api.the-odds-api.com/v4/sports/{league_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h&bookmakers=betclic,unibet_eu,winamax"
+odds_url = f"https://api.the-odds-api.com/v4/sports/{league_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts"
 
 try:
     r = requests.get(odds_url, timeout=5)
@@ -66,7 +65,7 @@ try:
                 
                 bookmakers = m_data.get('bookmakers', [])
                 
-                # Ordre de préférence : Betclic > Unibet > Winamax > Autre
+                # Cherche Betclic d'abord, puis Unibet/Winamax, sinon le 1er dispo
                 selected_bm = None
                 for target_bm in ['betclic', 'unibet_eu', 'winamax']:
                     selected_bm = next((b for b in bookmakers if b['key'] == target_bm), None)
@@ -82,9 +81,17 @@ try:
                                 if o['name'] == h_name: bk_1_val = float(o['price'])
                                 elif o['name'] == a_name: bk_2_val = float(o['price'])
                                 else: bk_N_val = float(o['price'])
-                    st.success(f"🎯 Cotes réelles chargées depuis **{selected_bm['title']}** !")
+                        elif market['key'] == 'totals':
+                            for o in market['outcomes']:
+                                if o.get('point') == 2.5:
+                                    if o['name'] == 'Over': bk_o25_val = float(o['price'])
+                                    elif o['name'] == 'Under': bk_u25_val = float(o['price'])
+                        elif market['key'] == 'btts':
+                            for o in market['outcomes']:
+                                if o['name'] == 'Yes': bk_btts_val = float(o['price'])
+                    st.success(f"🎯 Cotes réelles chargées depuis **{selected_bm['title']}** : 1 ({bk_1_val}) | N ({bk_N_val}) | 2 ({bk_2_val})")
         else:
-            st.info("Aucun match à venir coté sur Betclic/Unibet pour ce championnat.")
+            st.info("Aucun match à venir coté pour ce championnat actuellement.")
     else:
         st.warning(f"⚠️ Code réponse API : {r.status_code}")
 except Exception as e:
