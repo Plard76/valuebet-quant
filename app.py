@@ -1,10 +1,11 @@
 import streamlit as st
 import requests
 import math
+from datetime import datetime, timedelta, timezone
 
 st.set_page_config(page_title="ValueBet Quant", page_icon="⚽", layout="centered")
 
-st.title("⚽ ValueBet Quant - Auto Cotes")
+st.title("⚽ ValueBet Quant - Auto Cotes (48h Betclic)")
 
 API_KEY = "f38ee008fcce89b9c2f13d577cbd1745"
 
@@ -27,9 +28,9 @@ with col2:
 st.divider()
 
 # ---------------------------------------------------------
-# 2. SELECTION PAR MENU DÉROULANT DES MATCHS
+# 2. SELECTION MATCHS BETCLIC PROCHAINES 48H
 # ---------------------------------------------------------
-st.subheader("⚡ 2. Cotes Automatiques")
+st.subheader("⚡ 2. Matchs Betclic (48h Prochaines)")
 
 bk_1_val, bk_N_val, bk_2_val = 2.10, 3.40, 3.80
 bk_o25_val, bk_u25_val, bk_btts_val = 1.95, 1.85, 1.80
@@ -40,61 +41,62 @@ sports_keys = [
     "soccer_uefa_champs_league", "soccer_usa_mls"
 ]
 
-@st.cache_data(ttl=300)
-def fetch_all_matches():
+@st.cache_data(ttl=180)
+def fetch_betclic_48h_matches():
     matches_dict = {}
+    now = datetime.now(timezone.utc)
+    limit_48h = now + timedelta(hours=48)
+    
     for s_key in sports_keys:
-        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts"
+        # On demande uniquement Betclic à l'API pour charger très vite
+        odds_url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={API_KEY}&regions=eu&markets=h2h,totals,btts&bookmakers=betclic"
         try:
-            r = requests.get(odds_url, timeout=5)
+            r = requests.get(odds_url, timeout=4)
             data = r.json()
             if isinstance(data, list):
                 for match in data:
-                    label = f"{match['home_team']} vs {match['away_team']}"
-                    matches_dict[label] = match
+                    # Verification du filtre 48h
+                    commence_time = datetime.fromisoformat(match['commence_time'].replace('Z', '+00:00'))
+                    if now <= commence_time <= limit_48h:
+                        # Uniquement si Betclic est bien présent
+                        if any(bm['key'] == 'betclic' for bm in match.get('bookmakers', [])):
+                            label = f"{match['home_team']} vs {match['away_team']}"
+                            matches_dict[label] = match
         except Exception:
             pass
     return matches_dict
 
-all_matches = fetch_all_matches()
+all_matches = fetch_betclic_48h_matches()
 
 if all_matches:
-    selected_label = st.selectbox("📌 Choisis un match parmi les rencontres à venir :", ["-- Sélectionne un match --"] + list(all_matches.keys()))
+    selected_label = st.selectbox("📌 Choisis ton match Betclic (prochaines 48h) :", ["-- Sélectionne un match --"] + list(all_matches.keys()))
     
     if selected_label != "-- Sélectionne un match --":
         match = all_matches[selected_label]
         h_name = match['home_team']
         a_name = match['away_team']
         
-        bookmakers = match.get('bookmakers', [])
-        selected_bm = None
-        
-        for bm in bookmakers:
+        # On extrait les cotes Betclic
+        for bm in match.get('bookmakers', []):
             if bm['key'] == 'betclic':
-                selected_bm = bm
-                break
-        if not selected_bm and len(bookmakers) > 0:
-            selected_bm = bookmakers[0]
-            
-        if selected_bm:
-            for market in selected_bm.get('markets', []):
-                if market['key'] == 'h2h':
-                    for o in market['outcomes']:
-                        if o['name'] == h_name: bk_1_val = float(o['price'])
-                        elif o['name'] == a_name: bk_2_val = float(o['price'])
-                        else: bk_N_val = float(o['price'])
-                elif market['key'] == 'totals':
-                    for o in market['outcomes']:
-                        if o.get('point') == 2.5:
-                            if o['name'] == 'Over': bk_o25_val = float(o['price'])
-                            elif o['name'] == 'Under': bk_u25_val = float(o['price'])
-                elif market['key'] == 'btts':
-                    for o in market['outcomes']:
-                        if o['name'] == 'Yes': bk_btts_val = float(o['price'])
+                for market in bm.get('markets', []):
+                    if market['key'] == 'h2h':
+                        for o in market['outcomes']:
+                            if o['name'] == h_name: bk_1_val = float(o['price'])
+                            elif o['name'] == a_name: bk_2_val = float(o['price'])
+                            else: bk_N_val = float(o['price'])
+                    elif market['key'] == 'totals':
+                        for o in market['outcomes']:
+                            if o.get('point') == 2.5:
+                                if o['name'] == 'Over': bk_o25_val = float(o['price'])
+                                elif o['name'] == 'Under': bk_u25_val = float(o['price'])
+                    elif market['key'] == 'btts':
+                        for o in market['outcomes']:
+                            if o['name'] == 'Yes': bk_btts_val = float(o['price'])
 
-            st.success(f"🎯 Cotes réelles ({selected_bm['title']}) appliquées !")
+        st.success(f"🎯 Cotes Betclic chargées en direct !")
 else:
-    st.info("Recherche des matchs en cours...")
+    st.info("Aucun match Betclic trouvé dans les 48h pour ces ligues (ou rechargement en cours).")
 
 bk_dnb1_val = round(bk_1_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 1.50
 bk_dnb2_val = round(bk_2_val * (1 - (1 / bk_N_val)), 2) if bk_N_val > 0 else 2.60
