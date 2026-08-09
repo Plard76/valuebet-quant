@@ -1,9 +1,9 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Calculateur DNB & BTTS", page_icon="⚽", layout="centered")
+st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="centered")
 
-st.title("⚽ CALCULATEUR DNB & BTTS")
+st.title("⚽ CALCULATEUR QUANT - DNB, BTTS & OVER/UNDER")
 
 # ---------------------------------------------------------
 # 1. STATISTIQUES xG
@@ -39,8 +39,14 @@ cb1, cb2 = st.columns(2)
 bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
 bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
 
+st.markdown("**Cotes Over / Under (Facultatif - laisser à 1.00 si non renseigné)**")
+co1, co2, co3 = st.columns(3)
+bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
+bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
+bk_o35 = co3.number_input("Over 3.5", value=3.00, step=0.01, key="bk_o35")
+
 # ---------------------------------------------------------
-# 3. CALCULS DU MODÈLE DIXON-COLES
+# 3. CALCULS DU MODÈLE DIXON-COLES & POISSON
 # ---------------------------------------------------------
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
@@ -50,21 +56,34 @@ def poisson(k, lmbda):
 
 p_1, p_N, p_2 = 0.0, 0.0, 0.0
 p_btts_oui = 0.0
+p_over_15 = 0.0
+p_over_25 = 0.0
+p_over_35 = 0.0
 rho = -0.13
 
-for x in range(7):
-    for y in range(7):
+for x in range(10):
+    for y in range(10):
         p = poisson(x, lambda_val) * poisson(y, mu_val)
+        
+        # Correction Dixon-Coles pour les faibles scores
         if x == 0 and y == 0: p *= (1 - lambda_val * mu_val * rho)
         elif x == 1 and y == 0: p *= (1 + mu_val * rho)
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
         elif x == 1 and y == 1: p *= (1 - rho)
 
+        # 1N2
         if x > y: p_1 += p
         elif x == y: p_N += p
         else: p_2 += p
 
+        # BTTS
         if x > 0 and y > 0: p_btts_oui += p
+
+        # OVER / UNDER
+        total_goals = x + y
+        if total_goals > 1.5: p_over_15 += p
+        if total_goals > 2.5: p_over_25 += p
+        if total_goals > 3.5: p_over_35 += p
 
 p_btts_non = 1.0 - p_btts_oui
 p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
@@ -73,15 +92,15 @@ p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 st.divider()
 
 # ---------------------------------------------------------
-# 4. BILAN & CARTE DE RÉSULTATS
+# 4. RÉSULTATS
 # ---------------------------------------------------------
-st.subheader("🎯 3. Bilan & Comparatif Probas")
+st.subheader("🎯 3. Résultats & ValueBets")
 
 st.markdown(
     f"""
     <div style="background-color: #0f172a; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 16px; border: 1px solid #334155;">
-        <div style="color: #94a3b8; font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">xG ATTENDUS (λ - μ)</div>
-        <div style="color: #f8fafc; font-size: 1.8rem; font-weight: 900; font-family: monospace;">{lambda_val:.2f} — {mu_val:.2f}</div>
+        <div style="color: #94a3b8; font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">xG ATTENDUS DANS LE MATCH (λ + μ)</div>
+        <div style="color: #f8fafc; font-size: 1.8rem; font-weight: 900; font-family: monospace;">{lambda_val + mu_val:.2f} BUTS ATTENDUS ({lambda_val:.2f} - {mu_val:.2f})</div>
     </div>
     """,
     unsafe_allow_html=True
@@ -92,14 +111,14 @@ def display_card(title, bk, prob):
     prob_quant = prob * 100
     prob_book = (1 / bk * 100) if bk > 0 else 0
     
-    is_val = bk > fair and bk > 0
+    is_val = bk > fair and bk > 1.0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
     is_high_conf = is_val and prob_quant >= 75.0
     
     if is_high_conf:
         card_bg = "background-color: #064e3b; border: 2px solid #f59e0b;"
         badge = f"""
-        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.1rem; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px; box-shadow: 0 0 10px #10b981;">
+        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.1rem; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px;">
             🔥 ULTRA VALUE (+{val_edge:.1f}%) [PROBA > 75%]
         </div>
         """
@@ -116,7 +135,7 @@ def display_card(title, bk, prob):
             <div style="font-size: 1rem; color: #f1f5f9; font-weight: bold; margin-bottom: 6px;">{title}</div>
             <div style="font-size: 1.8rem; color: #38bdf8; font-weight: 900; margin-bottom: 6px;">{prob_quant:.1f}%</div>
             <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 4px;">
-                Cote Betclic : <b style="color: #ffffff;">{bk:.2f}</b> ({prob_book:.1f}%) | Cote juste mini : <b style="color: #f59e0b;">≥ {fair:.2f}</b>
+                Cote Betclic : <b style="color: #ffffff;">{bk:.2f}</b> | Cote juste mini : <b style="color: #f59e0b;">≥ {fair:.2f}</b>
             </div>
             {badge}
         </div>
@@ -124,10 +143,33 @@ def display_card(title, bk, prob):
         unsafe_allow_html=True
     )
 
+# 1. DNB
 st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
 display_card("DNB 1", bk_dnb1, p_dnb1)
 display_card("DNB 2", bk_dnb2, p_dnb2)
 
+# 2. BTTS
 st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
 display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
 display_card("BTTS NON", bk_btts_non, p_btts_non)
+
+# 3. OVER / UNDER AUTOMATIQUE (SELECTION DU PLUS PROBABLE)
+st.markdown("#### ⚽ MARCHÉ OVER / UNDER (LE PLUS PROBABLE)")
+
+# Ligne 1.5
+if p_over_15 >= 0.50:
+    display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
+else:
+    display_card("UNDER 1.5 BUTS", 1.0, 1.0 - p_over_15)
+
+# Ligne 2.5
+if p_over_25 >= 0.50:
+    display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
+else:
+    display_card("UNDER 2.5 BUTS", 1.0, 1.0 - p_over_25)
+
+# Ligne 3.5
+if p_over_35 >= 0.50:
+    display_card("OVER 3.5 BUTS", bk_o35, p_over_35)
+else:
+    display_card("UNDER 3.5 BUTS", 1.0, 1.0 - p_over_35)
