@@ -3,7 +3,7 @@ import math
 
 st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="centered")
 
-st.title("⚽ CALCULATEUR QUANT - DNB, BTTS & OVER/UNDER")
+st.title("⚽ CALCULATEUR QUANT - OVER/UNDER, DNB & BTTS")
 
 # ---------------------------------------------------------
 # 1. STATISTIQUES xG
@@ -29,6 +29,12 @@ st.divider()
 # ---------------------------------------------------------
 st.subheader("📊 2. Cotes Betclic")
 
+st.markdown("**Cotes Over / Under (Facultatif - laisser à 1.00 si non renseigné)**")
+co1, co2, co3 = st.columns(3)
+bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
+bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
+bk_o35 = co3.number_input("Over 3.5", value=3.00, step=0.01, key="bk_o35")
+
 st.markdown("**Draw No Bet (DNB)**")
 cd1, cd2 = st.columns(2)
 bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01, key="bk_dnb1")
@@ -38,12 +44,6 @@ st.markdown("**Les 2 équipes marquent (BTTS)**")
 cb1, cb2 = st.columns(2)
 bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
 bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
-
-st.markdown("**Cotes Over / Under (Facultatif - laisser à 1.00 si non renseigné)**")
-co1, co2, co3 = st.columns(3)
-bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
-bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
-bk_o35 = co3.number_input("Over 3.5", value=3.00, step=0.01, key="bk_o35")
 
 # ---------------------------------------------------------
 # 3. CALCULS DU MODÈLE DIXON-COLES & POISSON
@@ -144,17 +144,7 @@ def display_card(title, bk, prob):
         unsafe_allow_html=True
     )
 
-# 1. DNB
-st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
-display_card("DNB 1", bk_dnb1, p_dnb1)
-display_card("DNB 2", bk_dnb2, p_dnb2)
-
-# 2. BTTS
-st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
-display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
-display_card("BTTS NON", bk_btts_non, p_btts_non)
-
-# 3. OVER / UNDER AVEC MARGE DE SÉCURITÉ
+# 1. OVER / UNDER EN PREMIER RÉSULTAT
 st.markdown("#### ⚽ DIAGNOSTIC OVER / UNDER (MARGE DE SÉCURITÉ)")
 
 if xg_total >= 2.70 and p_over_25 >= 0.58:
@@ -166,3 +156,13 @@ elif xg_total >= 2.10:
 else:
     st.info(f"🔒 **MATCH PEU OFFENSIF : UNDER 2.5 BUTS**\n\n- xG Cumulés : **{xg_total:.2f}** (Match fermé / défensif).\n- Probabilité Under 2.5 : **{(1.0 - p_over_25)*100:.1f}%**")
     display_card("UNDER 2.5 BUTS", 1.0, 1.0 - p_over_25)
+
+# 2. DNB EN SECOND
+st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
+display_card("DNB 1", bk_dnb1, p_dnb1)
+display_card("DNB 2", bk_dnb2, p_dnb2)
+
+# 3. BTTS EN DERNIER
+st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
+display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
+display_card("BTTS NON", bk_btts_non, p_btts_non)
