@@ -33,7 +33,7 @@ st.markdown("**Cotes Over / Under (Facultatif - laisser à 1.00 si non renseign�
 co1, co2, co3 = st.columns(3)
 bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
 bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
-bk_o35 = co3.number_input("Over 3.5", value=3.00, step=0.01, key="bk_o35")
+bk_u25 = co3.number_input("Under 2.5", value=2.00, step=0.01, key="bk_u25")
 
 st.markdown("**Draw No Bet (DNB)**")
 cd1, cd2 = st.columns(2)
@@ -88,6 +88,11 @@ for x in range(10):
 p_btts_non = 1.0 - p_btts_oui
 p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
 p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
+
+p_under_15 = 1.0 - p_over_15
+p_under_25 = 1.0 - p_over_25
+p_under_35 = 1.0 - p_over_35
+
 xg_total = lambda_val + mu_val
 
 st.divider()
@@ -144,7 +149,7 @@ def display_card(title, bk, prob):
         unsafe_allow_html=True
     )
 
-# 1. OVER / UNDER EN PREMIER RÉSULTAT
+# 1. OVER / UNDER EN PREMIER RÉSULTAT (DÉTECTION D'OVER ET D'UNDER)
 st.markdown("#### ⚽ DIAGNOSTIC OVER / UNDER (MARGE DE SÉCURITÉ)")
 
 if xg_total >= 2.70 and p_over_25 >= 0.58:
@@ -153,9 +158,12 @@ if xg_total >= 2.70 and p_over_25 >= 0.58:
 elif xg_total >= 2.10:
     st.warning(f"🛡️ **OPTION SÉCURISÉE : OVER 1.5 BUTS**\n\n- xG Cumulés : **{xg_total:.2f}** (Trop juste pour l'Over 2.5 en toute sécurité).\n- L'Over 1.5 offre un taux de réussite très élevé : **{p_over_15*100:.1f}%**")
     display_card("OVER 1.5 BUTS (SÉCURISÉ)", bk_o15, p_over_15)
+elif xg_total <= 1.80:
+    st.info(f"🔒 **MATCH TRÈS FERMÉ : UNDER 2.5 BUTS**\n\n- xG Cumulés : **{xg_total:.2f}** (Match très défensif / faible xG).\n- Probabilité Under 2.5 : **{p_under_25*100:.1f}%**")
+    display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
 else:
-    st.info(f"🔒 **MATCH PEU OFFENSIF : UNDER 2.5 BUTS**\n\n- xG Cumulés : **{xg_total:.2f}** (Match fermé / défensif).\n- Probabilité Under 2.5 : **{(1.0 - p_over_25)*100:.1f}%**")
-    display_card("UNDER 2.5 BUTS", 1.0, 1.0 - p_over_25)
+    st.info(f"🔒 **MATCH PEU OFFENSIF : UNDER 3.5 BUTS**\n\n- xG Cumulés : **{xg_total:.2f}**\n- Probabilité Under 3.5 : **{p_under_35*100:.1f}%**")
+    display_card("UNDER 3.5 BUTS", 1.0, p_under_35)
 
 # 2. DNB EN SECOND
 st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
