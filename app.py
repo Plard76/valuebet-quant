@@ -1,65 +1,9 @@
 import streamlit as st
 import math
 
-# Verification de la disponibilité des bibliothèques OCR / Image
-try:
-    from PIL import Image
-    import re
-    import easyocr
-    import numpy as np
-    HAS_OCR = True
-except ImportError:
-    HAS_OCR = False
-
 st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="centered")
 
-st.title("⚽ CALCULATEUR QUANT - OVER/UNDER, DNB & BTTS")
-
-# ---------------------------------------------------------
-# MODULE D'ANALYSE D'IMAGE (SOLUTION 1 : EASYOCR)
-# ---------------------------------------------------------
-extracted_xg = {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
-
-st.subheader("📸 Option : Remplissage par Photo")
-
-uploaded_file = st.file_uploader("Prends une photo ou importe une capture (FotMob / FBref)", type=["png", "jpg", "jpeg"])
-
-if uploaded_file is not None:
-    if not HAS_OCR:
-        st.warning("⚠️ EasyOCR n'est pas installé sur le serveur. Pour l'activer, ajoute `easyocr` et `pillow` dans ton fichier `requirements.txt` sur GitHub.")
-    else:
-        with st.spinner("Analyse de la capture d'écran en cours..."):
-            image = Image.open(uploaded_file)
-            st.image(image, caption="Capture d'écran importée", use_container_width=True)
-            
-            # Lecture des textes avec EasyOCR
-            reader = easyocr.Reader(['fr', 'en'], gpu=False)
-            img_np = np.array(image)
-            results = reader.readtext(img_np, detail=0)
-            
-            # Extraction des nombres décimaux trouvés dans le texte
-            extracted_numbers = []
-            for text in results:
-                # Cherche les formats de nombres comme 1.67, 1,67, 0.83, etc.
-                matches = re.findall(r'\b\d+[\.,]\d+\b', text)
-                for m in matches:
-                    try:
-                        val = float(m.replace(',', '.'))
-                        if 0.1 <= val <= 4.0:  # Filtre les valeurs xG plausibles
-                            extracted_numbers.append(val)
-                    except ValueError:
-                        pass
-            
-            if len(extracted_numbers) >= 4:
-                extracted_xg["xgA_m"] = extracted_numbers[0]
-                extracted_xg["xgA_c"] = extracted_numbers[1]
-                extracted_xg["xgB_m"] = extracted_numbers[2]
-                extracted_xg["xgB_c"] = extracted_numbers[3]
-                st.success(f"✅ xG détectés : Dom ({extracted_numbers[0]} / {extracted_numbers[1]}) | Ext ({extracted_numbers[2]} / {extracted_numbers[3]})")
-            else:
-                st.info("ℹ️ L'OCR a lu l'image mais n'a pas pu identifier clairement les 4 xG. Utilise la saisie manuelle ci-dessous.")
-
-st.divider()
+st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & BTTS")
 
 # ---------------------------------------------------------
 # 1. STATISTIQUES xG
@@ -70,13 +14,13 @@ col_dom, col_ext = st.columns(2)
 
 with col_dom:
     st.markdown("### 🏠 Domicile")
-    xgA_m = st.number_input("xG Marqués (Dom)", value=extracted_xg["xgA_m"], step=0.01, key="xgA_m")
-    xgA_c = st.number_input("xG Concédés (Dom)", value=extracted_xg["xgA_c"], step=0.01, key="xgA_c")
+    xgA_m = st.number_input("xG Marqués (Dom)", value=1.67, step=0.01, key="xgA_m")
+    xgA_c = st.number_input("xG Concédés (Dom)", value=0.83, step=0.01, key="xgA_c")
 
 with col_ext:
     st.markdown("### ✈️ Extérieur")
-    xgB_m = st.number_input("xG Marqués (Ext)", value=extracted_xg["xgB_m"], step=0.01, key="xgB_m")
-    xgB_c = st.number_input("xG Concédés (Ext)", value=extracted_xg["xgB_c"], step=0.01, key="xgB_c")
+    xgB_m = st.number_input("xG Marqués (Ext)", value=1.00, step=0.01, key="xgB_m")
+    xgB_c = st.number_input("xG Concédés (Ext)", value=1.33, step=0.01, key="xgB_c")
 
 st.divider()
 
@@ -90,11 +34,6 @@ co1, co2, co3 = st.columns(3)
 bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
 bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
 bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
-
-st.markdown("**Draw No Bet (DNB)**")
-cd1, cd2 = st.columns(2)
-bk_dnb1 = cd1.number_input("DNB 1", value=1.63, step=0.01, key="bk_dnb1")
-bk_dnb2 = cd2.number_input("DNB 2", value=1.90, step=0.01, key="bk_dnb2")
 
 st.markdown("**Les 2 équipes marquent (BTTS)**")
 cb1, cb2 = st.columns(2)
@@ -127,11 +66,6 @@ for x in range(10):
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
         elif x == 1 and y == 1: p *= (1 - rho)
 
-        # 1N2
-        if x > y: p_1 += p
-        elif x == y: p_N += p
-        else: p_2 += p
-
         # BTTS
         if x > 0 and y > 0: p_btts_oui += p
 
@@ -142,9 +76,6 @@ for x in range(10):
         if total_goals > 3.5: p_over_35 += p
 
 p_btts_non = 1.0 - p_btts_oui
-p_dnb1 = p_1 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
-p_dnb2 = p_2 / (p_1 + p_2) if (p_1 + p_2) > 0 else 0
-
 p_under_25 = 1.0 - p_over_25
 xg_total = lambda_val + mu_val
 
@@ -168,7 +99,6 @@ st.markdown(
 def display_card(title, bk, prob):
     fair = 1 / prob if prob > 0 else 0
     prob_quant = prob * 100
-    prob_book = (1 / bk * 100) if bk > 0 else 0
     
     is_val = bk > fair and bk > 1.0
     val_edge = (((bk * prob) - 1) * 100) if is_val else 0
@@ -202,8 +132,8 @@ def display_card(title, bk, prob):
         unsafe_allow_html=True
     )
 
-# 1. DIAGNOSTIC ET LES 3 LIGNES ESSENTIELLES OVER / UNDER
-st.markdown("#### ⚽ DIAGNOSTIC & LES 3 MARCHÉS CLÉS OVER / UNDER")
+# 1. DIAGNOSTIC ET OVER / UNDER
+st.markdown("#### ⚽ DIAGNOSTIC & OVER / UNDER")
 
 if xg_total >= 2.70 and p_over_25 >= 0.58:
     st.success(f"✅ **RECOMMANDATION SÉCURISÉE : OVER 2.5 BUTS** (xG Cumulés : {xg_total:.2f})")
@@ -216,12 +146,7 @@ display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
 display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
 display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
 
-# 2. DNB EN SECOND
-st.markdown("#### 🎯 MARCHÉ DRAW NO BET (DNB)")
-display_card("DNB 1", bk_dnb1, p_dnb1)
-display_card("DNB 2", bk_dnb2, p_dnb2)
-
-# 3. BTTS EN DERNIER
+# 2. BTTS
 st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
 display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
 display_card("BTTS NON", bk_btts_non, p_btts_non)
