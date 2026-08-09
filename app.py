@@ -1,7 +1,7 @@
 import streamlit as st
 import math
 
-# Essaie d'importer EasyOCR et PIL si disponibles
+# Verification de la disponibilité des bibliothèques OCR / Image
 try:
     from PIL import Image
     import re
@@ -30,7 +30,7 @@ if uploaded_file is not None:
     else:
         with st.spinner("Analyse de la capture d'écran en cours..."):
             image = Image.open(uploaded_file)
-            st.image(image, caption="Capture d'écran importée", use_column_width=True)
+            st.image(image, caption="Capture d'écran importée", use_container_width=True)
             
             # Lecture des textes avec EasyOCR
             reader = easyocr.Reader(['fr', 'en'], gpu=False)
@@ -45,7 +45,7 @@ if uploaded_file is not None:
                 for m in matches:
                     try:
                         val = float(m.replace(',', '.'))
-                        if 0.1 <= val <= 4.0: # Filtre les valeurs xG plausibles
+                        if 0.1 <= val <= 4.0:  # Filtre les valeurs xG plausibles
                             extracted_numbers.append(val)
                     except ValueError:
                         pass
