@@ -73,7 +73,6 @@ p_over_15 = 0.0
 p_over_25 = 0.0
 p_over_35 = 0.0
 rho = -0.13
-score_grid = []  # stocke (x, y, proba) pour retrouver les scores les plus probables
 
 for x in range(10):
     for y in range(10):
@@ -84,8 +83,6 @@ for x in range(10):
         elif x == 1 and y == 0: p *= (1 + mu_val * rho)
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
         elif x == 1 and y == 1: p *= (1 - rho)
-
-        score_grid.append((x, y, p))
 
         # BTTS
         if x > 0 and y > 0: p_btts_oui += p
@@ -100,9 +97,6 @@ p_btts_non = 1.0 - p_btts_oui
 p_under_25 = 1.0 - p_over_25
 xg_total = lambda_val + mu_val
 xg_total_prudent = xg_total * XG_SAFETY_COEFFICIENT
-
-# Top 5 des scores exacts les plus probables (triés par proba décroissante)
-top_scores = sorted(score_grid, key=lambda s: s[2], reverse=True)[:5]
 
 st.divider()
 
@@ -133,22 +127,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-# --- Top 5 des scores exacts les plus probables ---
-st.markdown("#### 🔢 Scores exacts les plus probables")
-score_cols = st.columns(5)
-for i, (x, y, p) in enumerate(top_scores):
-    with score_cols[i]:
-        st.markdown(
-            f"""
-            <div style="background-color: #1e293b; border: 1px solid #334155; padding: 10px 4px; border-radius: 8px; text-align: center;">
-                <div style="color: #f8fafc; font-size: 1.3rem; font-weight: 900; font-family: monospace;">{x} - {y}</div>
-                <div style="color: #38bdf8; font-size: 0.85rem; font-weight: bold;">{p*100:.1f}%</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-st.caption("Purement informatif : la somme des 5 scores ne représente qu'une fraction de la probabilité totale (beaucoup d'autres scores se partagent le reste). Ne sert jamais à valider un edge — utilise les cartes ci-dessous pour ça.")
 
 
 def display_card(title, bk, prob, movement=None):
