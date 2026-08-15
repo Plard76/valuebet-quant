@@ -34,16 +34,27 @@ st.divider()
 # ---------------------------------------------------------
 st.subheader("📊 2. Cotes Betclic")
 
-st.markdown("**Cotes Over / Under (Les 3 Lignes Clés)**")
-co1, co2, co3 = st.columns(3)
-bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
-bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
-bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
+# Interrupteur d'affichage : passe à True si tu veux revoir l'Over/Under un jour.
+# Le calcul et les cotes Over/Under restent intacts plus bas, juste non affichés.
+SHOW_OVER_UNDER = False
 
 st.markdown("**Les 2 équipes marquent (BTTS)**")
 cb1, cb2 = st.columns(2)
 bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
 bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
+
+st.markdown("**Évolution de la cote depuis ta première consultation**")
+st.caption("Cote qui baisse = le marché se resserre vers ce résultat (signal favorable). Cote qui monte = le marché s'en éloigne (signal défavorable, mieux vaut ne pas jouer).")
+cm1, cm2 = st.columns(2)
+MOVEMENT_OPTIONS = ["➡️ Stable / pas suivi", "↗️ En hausse", "↘️ En baisse"]
+mvt_btts_oui = cm1.selectbox("Évolution BTTS Oui", MOVEMENT_OPTIONS, key="mvt_btts_oui")
+mvt_btts_non = cm2.selectbox("Évolution BTTS Non", MOVEMENT_OPTIONS, key="mvt_btts_non")
+
+st.markdown("**Cotes Over / Under (gardées en mémoire, non utilisées pour le moment)**")
+co1, co2, co3 = st.columns(3)
+bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
+bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
+bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
 
 # ---------------------------------------------------------
 # 3. CALCULS DU MODÈLE DIXON-COLES & POISSON
@@ -140,7 +151,7 @@ for i, (x, y, p) in enumerate(top_scores):
 st.caption("Purement informatif : la somme des 5 scores ne représente qu'une fraction de la probabilité totale (beaucoup d'autres scores se partagent le reste). Ne sert jamais à valider un edge — utilise les cartes ci-dessous pour ça.")
 
 
-def display_card(title, bk, prob):
+def display_card(title, bk, prob, movement=None):
     prob_quant = prob * 100
 
     # --- Edge en POINTS (proba modèle - proba implicite de la cote), avec marge de sécurité ---
@@ -171,6 +182,17 @@ def display_card(title, bk, prob):
         card_bg = "background-color: #1e293b; border: 1px solid #334155;"
         badge = f'<div style="color: #ef4444; font-weight: bold; font-size: 1.1rem; margin-top: 6px;">NO VALUE ({edge_points:+.1f} pts)</div>'
 
+    # --- Interprétation de l'évolution de cote (purement indicative, ne change jamais le badge ci-dessus) ---
+    movement_html = ""
+    if movement and movement != "➡️ Stable / pas suivi":
+        if movement == "↘️ En baisse":
+            mvt_note = "le marché se resserre vers ce résultat (confirmation) → signal favorable pour jouer."
+            mvt_color = "#10b981"
+        else:  # En hausse
+            mvt_note = "le marché s'éloigne de ce résultat (doute) → signal défavorable, mieux vaut ne pas jouer même si l'edge semble bon."
+            mvt_color = "#ef4444"
+        movement_html = f'<div style="font-size: 0.8rem; color: {mvt_color}; margin-top: 4px; margin-bottom: 4px;">{movement} — {mvt_note}</div>'
+
     st.markdown(
         f"""
         <div style="{card_bg} padding: 14px; border-radius: 10px; margin-bottom: 12px;">
@@ -182,6 +204,7 @@ def display_card(title, bk, prob):
             <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">
                 ROI attendu : <b style="color: {'#10b981' if roi > 0 else '#ef4444'};">{roi:+.1f}%</b>
             </div>
+            {movement_html}
             {badge}
         </div>
         """,
@@ -189,13 +212,14 @@ def display_card(title, bk, prob):
     )
 
 
-# OVER / UNDER
-st.markdown("#### ⚽ OVER / UNDER")
-display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
-display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
-display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
+# OVER / UNDER — masqué pour l'instant (voir SHOW_OVER_UNDER en haut du fichier), code intact
+if SHOW_OVER_UNDER:
+    st.markdown("#### ⚽ OVER / UNDER")
+    display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
+    display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
+    display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
 
-# BTTS
+# BTTS — seul marché actif pour le moment
 st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
-display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
-display_card("BTTS NON", bk_btts_non, p_btts_non)
+display_card("BTTS OUI", bk_btts_oui, p_btts_oui, movement=mvt_btts_oui)
+display_card("BTTS NON", bk_btts_non, p_btts_non, movement=mvt_btts_non)
