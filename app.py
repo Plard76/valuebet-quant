@@ -51,10 +51,13 @@ mvt_btts_oui = cm1.selectbox("Évolution BTTS Oui", MOVEMENT_OPTIONS, key="mvt_b
 mvt_btts_non = cm2.selectbox("Évolution BTTS Non", MOVEMENT_OPTIONS, key="mvt_btts_non")
 
 st.markdown("**Cotes Over / Under (gardées en mémoire, non utilisées pour le moment)**")
-co1, co2, co3 = st.columns(3)
-bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
-bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
-bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
+if SHOW_OVER_UNDER:
+    co1, co2, co3 = st.columns(3)
+    bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
+    bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
+    bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
+else:
+    st.caption("Masquées — passe SHOW_OVER_UNDER à True en haut du fichier pour les revoir.")
 
 # ---------------------------------------------------------
 # 3. CALCULS DU MODÈLE DIXON-COLES & POISSON
@@ -146,21 +149,29 @@ def display_card(title, bk, prob, movement=None):
     is_val = edge_points > 0 and bk > 0
     is_ultra = is_val and edge_points > EDGE_THRESHOLD_ULTRA and prob_quant >= 75.0
 
-    if is_ultra:
-        card_bg = "background-color: #064e3b; border: 2px solid #f59e0b;"
+    # --- Décision finale : vert UNIQUEMENT si edge positif ET cote en baisse (marché qui confirme) ---
+    movement_confirms = movement == "↘️ En baisse"
+    on_joue = is_val and movement_confirms
+
+    if on_joue and is_ultra:
+        card_bg = "background-color: #064e3b; border: 3px solid #10b981;"
         badge = f"""
-        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.1rem; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px;">
+        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.15rem; padding: 8px; border-radius: 6px; text-align: center; margin-top: 6px;">
             🔥 ULTRA VALUE (+{edge_points:.1f} pts) [PROBA ≥ 75%]
         </div>
         """
+    elif on_joue:
+        card_bg = "background-color: #14532d; border: 3px solid #10b981;"
+        badge = f'<div style="color: #10b981; font-weight: 900; font-size: 1.15rem; margin-top: 6px;">+{edge_points:.1f} pts VALUE</div>'
     elif is_val:
-        card_bg = "background-color: #1e4620; border: 1px solid #10b981;"
-        badge = f'<div style="color: #10b981; font-weight: bold; font-size: 1.1rem; margin-top: 6px;">+{edge_points:.1f} pts VALUE</div>'
+        # Edge positif mais mouvement de cote qui ne confirme pas (stable ou en hausse) -> pas de vert
+        card_bg = "background-color: #1e293b; border: 1px solid #f59e0b;"
+        badge = f'<div style="color: #f59e0b; font-weight: bold; font-size: 1rem; margin-top: 6px;">+{edge_points:.1f} pts d\'edge, mais non confirmé par le marché</div>'
     else:
         card_bg = "background-color: #1e293b; border: 1px solid #334155;"
-        badge = f'<div style="color: #ef4444; font-weight: bold; font-size: 1.1rem; margin-top: 6px;">NO VALUE ({edge_points:+.1f} pts)</div>'
+        badge = f'<div style="color: #ef4444; font-weight: bold; font-size: 1rem; margin-top: 6px;">NO VALUE ({edge_points:+.1f} pts)</div>'
 
-    # --- Interprétation de l'évolution de cote (purement indicative, ne change jamais le badge ci-dessus) ---
+    # --- Interprétation de l'évolution de cote (purement indicative) ---
     movement_html = ""
     if movement and movement != "➡️ Stable / pas suivi":
         if movement == "↘️ En baisse":
@@ -170,6 +181,12 @@ def display_card(title, bk, prob, movement=None):
             mvt_note = "le marché s'éloigne de ce résultat (doute) → signal défavorable, mieux vaut ne pas jouer même si l'edge semble bon."
             mvt_color = "#ef4444"
         movement_html = f'<div style="font-size: 0.8rem; color: {mvt_color}; margin-top: 4px; margin-bottom: 4px;">{movement} — {mvt_note}</div>'
+
+    # --- Verdict final, gros et en gras ---
+    if on_joue:
+        verdict_html = '<div style="background-color:#10b981; color:#000000; font-weight:900; font-size:1.3rem; text-align:center; padding:8px; border-radius:6px; margin-top:8px;">✅ ON JOUE</div>'
+    else:
+        verdict_html = '<div style="background-color:#3d1a1a; color:#ff8080; font-weight:900; font-size:1.3rem; text-align:center; padding:8px; border-radius:6px; margin-top:8px;">❌ ON NE JOUE PAS</div>'
 
     st.markdown(
         f"""
@@ -184,6 +201,7 @@ def display_card(title, bk, prob, movement=None):
             </div>
             {movement_html}
             {badge}
+            {verdict_html}
         </div>
         """,
         unsafe_allow_html=True
