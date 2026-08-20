@@ -2,7 +2,6 @@ import streamlit as st
 import math
 import os
 
-# Tentative d'importation de pandas
 try:
     import pandas as pd
     HAS_PANDAS = True
@@ -13,30 +12,21 @@ st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="c
 
 st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & BTTS")
 
+# Initialisation des variables dans le session_state
+if "xgA_m" not in st.session_state: st.session_state["xgA_m"] = 1.67
+if "xgA_c" not in st.session_state: st.session_state["xgA_c"] = 0.83
+if "xgB_m" not in st.session_state: st.session_state["xgB_m"] = 1.00
+if "xgB_c" not in st.session_state: st.session_state["xgB_c"] = 1.33
+
 # ---------------------------------------------------------
-# 1. IMPORTATION ET TÉLÉCHARGEMENT CSV
+# 1. IMPORTATION DU FICHIER CSV DE LA JOURNÉE
 # ---------------------------------------------------------
 st.subheader("📁 1. Matchs du Jour (CSV / Excel)")
 
-default_values = {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
-
-# Modèle CSV prêt à être téléchargé sur le téléphone
-template_csv = "match,xga_m,xga_c,xgb_m,xgb_c\nGirona vs Rayo Vallecano,1.85,1.20,1.30,1.55\nHammarby vs Kalmar,2.10,1.10,1.60,1.70\n"
-
-st.download_button(
-    label="📥 1. Télécharger le modèle CSV exemple",
-    data=template_csv,
-    file_name="matchs_exemple.csv",
-    mime="text/csv"
-)
-
-st.caption("Télécharge le fichier modèle ci-dessus, modifie les chiffres, puis redépose-le ci-dessous.")
-
-uploaded_file = st.file_uploader("📤 2. Dépose ton fichier CSV/Excel rempli", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("📤 Dépose ton fichier CSV/Excel des matchs du jour", type=["csv", "xlsx"])
 
 df = None
 
-# Lecture du fichier déposé ou d'un fichier 'matchs.csv' présent sur GitHub
 if uploaded_file is not None and HAS_PANDAS:
     try:
         if uploaded_file.name.endswith('.csv'):
@@ -44,11 +34,11 @@ if uploaded_file is not None and HAS_PANDAS:
         else:
             df = pd.read_excel(uploaded_file)
     except Exception as e:
-        st.error(f"Erreur de lecture du fichier importé : {e}")
+        st.error(f"Erreur de lecture : {e}")
 elif os.path.exists("matchs.csv") and HAS_PANDAS:
     try:
         df = pd.read_csv("matchs.csv")
-        st.info("ℹ️ Fichier 'matchs.csv' détecté depuis GitHub.")
+        st.info("ℹ️ Fichier 'matchs.csv' chargé depuis GitHub.")
     except Exception as e:
         pass
 
@@ -69,19 +59,20 @@ if df is not None:
         
         match_row = df[df['match'] == selected_match].iloc[0]
         
-        default_values["xgA_m"] = float(match_row.get('xga_m', default_values["xgA_m"]))
-        default_values["xgA_c"] = float(match_row.get('xga_c', default_values["xgA_c"]))
-        default_values["xgB_m"] = float(match_row.get('xgb_m', default_values["xgB_m"]))
-        default_values["xgB_c"] = float(match_row.get('xgb_c', default_values["xgB_c"]))
+        # MISE À JOUR FORCEE DES CASES VIA SESSION_STATE
+        st.session_state["xgA_m"] = float(match_row.get('xga_m', 1.67))
+        st.session_state["xgA_c"] = float(match_row.get('xga_c', 0.83))
+        st.session_state["xgB_m"] = float(match_row.get('xgb_m', 1.00))
+        st.session_state["xgB_c"] = float(match_row.get('xgb_c', 1.33))
         
-        st.success(f"✅ xG chargés automatiquement pour : **{selected_match}**")
+        st.success(f"✅ xG mis à jour pour : **{selected_match}**")
     except Exception as e:
-        st.error(f"Erreur d'extraction des données du match : {e}")
+        st.error(f"Erreur d'extraction des données : {e}")
 
 st.divider()
 
 # ---------------------------------------------------------
-# 2. STATISTIQUES xG
+# 2. STATISTIQUES xG (S'ACTUALISENT MAINTENANT EN DIRECT)
 # ---------------------------------------------------------
 st.subheader("📝 2. Statistiques xG")
 
@@ -89,13 +80,13 @@ col_dom, col_ext = st.columns(2)
 
 with col_dom:
     st.markdown("### 🏠 Domicile")
-    xgA_m = st.number_input("xG Marqués (Dom)", value=default_values["xgA_m"], step=0.01, key="xgA_m")
-    xgA_c = st.number_input("xG Concédés (Dom)", value=default_values["xgA_c"], step=0.01, key="xgA_c")
+    xgA_m = st.number_input("xG Marqués (Dom)", value=st.session_state["xgA_m"], step=0.01, key="input_xgA_m")
+    xgA_c = st.number_input("xG Concédés (Dom)", value=st.session_state["xgA_c"], step=0.01, key="input_xgA_c")
 
 with col_ext:
     st.markdown("### ✈️ Extérieur")
-    xgB_m = st.number_input("xG Marqués (Ext)", value=default_values["xgB_m"], step=0.01, key="xgB_m")
-    xgB_c = st.number_input("xG Concédés (Ext)", value=default_values["xgB_c"], step=0.01, key="xgB_c")
+    xgB_m = st.number_input("xG Marqués (Ext)", value=st.session_state["xgB_m"], step=0.01, key="input_xgB_m")
+    xgB_c = st.number_input("xG Concédés (Ext)", value=st.session_state["xgB_c"], step=0.01, key="input_xgB_c")
 
 XG_SAFETY_COEFFICIENT = 0.85
 
@@ -114,16 +105,12 @@ cb1, cb2 = st.columns(2)
 bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
 bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
 
-st.markdown("**Les 2 équipes marquent OU + de 2.5 buts (gardé en mémoire)**")
 if SHOW_BTTS25:
     cbo1, cbo2 = st.columns(2)
     bk_btts25_oui = cbo1.number_input("BTTS+2.5 Oui", value=1.55, step=0.01, key="bk_btts25_oui")
     bk_btts25_non = cbo2.number_input("BTTS+2.5 Non", value=2.20, step=0.01, key="bk_btts25_non")
-else:
-    st.caption("Masqué — passe SHOW_BTTS25 à True en haut du fichier pour le revoir.")
 
 st.markdown("**Évolution de la cote depuis ta première consultation**")
-st.caption("Cote qui baisse = le marché se resserre vers ce résultat. Cote qui monte = le marché s'en éloigne.")
 cm1, cm2 = st.columns(2)
 MOVEMENT_OPTIONS = ["➡️ Stable / pas suivi", "↗️ En hausse", "↘️ En baisse"]
 mvt_btts_oui = cm1.selectbox("Évolution BTTS Oui", MOVEMENT_OPTIONS, key="mvt_btts_oui")
@@ -134,14 +121,11 @@ if SHOW_BTTS25:
     mvt_btts25_oui = cm3.selectbox("Évolution BTTS+2.5 Oui", MOVEMENT_OPTIONS, key="mvt_btts25_oui")
     mvt_btts25_non = cm4.selectbox("Évolution BTTS+2.5 Non", MOVEMENT_OPTIONS, key="mvt_btts25_non")
 
-st.markdown("**Cotes Over / Under (gardées en mémoire)**")
 if SHOW_OVER_UNDER:
     co1, co2, co3 = st.columns(3)
     bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
     bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
     bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
-else:
-    st.caption("Masquées — passe SHOW_OVER_UNDER à True en haut du fichier pour les revoir.")
 
 # ---------------------------------------------------------
 # 4. CALCULS DU MODÈLE DIXON-COLES & POISSON
@@ -166,23 +150,19 @@ for x in range(10):
     for y in range(10):
         p = poisson(x, lambda_val) * poisson(y, mu_val)
 
-        # Correction Dixon-Coles
         if x == 0 and y == 0: p *= (1 - lambda_val * mu_val * rho)
         elif x == 1 and y == 0: p *= (1 + mu_val * rho)
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
         elif x == 1 and y == 1: p *= (1 - rho)
 
-        # BTTS
         btts_ici = x > 0 and y > 0
         if btts_ici: p_btts_oui += p
 
-        # OVER / UNDER
         total_goals = x + y
         if total_goals > 1.5: p_over_15 += p
         if total_goals > 2.5: p_over_25 += p
         if total_goals > 3.5: p_over_35 += p
 
-        # Intersection BTTS et Over 2.5
         if btts_ici and total_goals > 2.5: p_btts_and_over25 += p
 
 p_btts_non = 1.0 - p_btts_oui
