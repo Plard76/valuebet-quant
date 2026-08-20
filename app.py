@@ -6,71 +6,68 @@ st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="c
 st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & BTTS")
 
 # ---------------------------------------------------------
-# 1. STATISTIQUES xG
+# PROFILS AUTOMATIQUES PAR CHAMPIONNAT (GAIN DE TEMPS)
 # ---------------------------------------------------------
-st.subheader("📝 1. Statistiques xG")
+st.subheader("⚡ 1. Choix du Championnat (Profil xG Auto)")
+
+PROFILES = {
+    "🇸🇪 🇳🇴 🇩🇰 Scandinavie (Suède, Norvège, Danemark)": {"xgA_m": 1.85, "xgA_c": 1.30, "xgB_m": 1.55, "xgB_c": 1.45},
+    "🇳🇱 🇧🇪 Pays-Bas / Belgique (Eredivisie, Pro League)": {"xgA_m": 1.95, "xgA_c": 1.25, "xgB_m": 1.50, "xgB_c": 1.60},
+    "🇺🇸 🇲🇽 MLS & Leagues Cup (USA / Mexique)": {"xgA_m": 1.75, "xgA_c": 1.35, "xgB_m": 1.45, "xgB_c": 1.55},
+    "🇪🇺 Top 5 Européen (Équilibré)": {"xgA_m": 1.50, "xgA_c": 1.10, "xgB_m": 1.20, "xgB_c": 1.30},
+    "🇦🇷 🇫🇷 Argentine / Ligue 2 (Championnats fermés)": {"xgA_m": 1.15, "xgA_c": 0.85, "xgB_m": 0.90, "xgB_c": 1.05},
+    "⚙️ Saisie Personnalisée (Ajustement manuel)": {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
+}
+
+selected_profile = st.selectbox("Sélectionne le profil de la ligue :", list(PROFILES.keys()))
+default_xg = PROFILES[selected_profile]
+
+st.divider()
+
+# ---------------------------------------------------------
+# STATISTIQUES xG (REMPLIES AUTOMATIQUEMENT)
+# ---------------------------------------------------------
+st.subheader("📝 2. Statistiques xG")
 
 col_dom, col_ext = st.columns(2)
 
 with col_dom:
     st.markdown("### 🏠 Domicile")
-    xgA_m = st.number_input("xG Marqués (Dom)", value=1.67, step=0.01, key="xgA_m")
-    xgA_c = st.number_input("xG Concédés (Dom)", value=0.83, step=0.01, key="xgA_c")
+    xgA_m = st.number_input("xG Marqués (Dom)", value=default_xg["xgA_m"], step=0.01, key="xgA_m")
+    xgA_c = st.number_input("xG Concédés (Dom)", value=default_xg["xgA_c"], step=0.01, key="xgA_c")
 
 with col_ext:
     st.markdown("### ✈️ Extérieur")
-    xgB_m = st.number_input("xG Marqués (Ext)", value=1.00, step=0.01, key="xgB_m")
-    xgB_c = st.number_input("xG Concédés (Ext)", value=1.33, step=0.01, key="xgB_c")
-
-# Coefficient de sécurité : réduit le xG calculé pour avoir une version plus prudente,
-# partant du principe qu'un modèle simple (sans forme récente précise, sans absences)
-# a tendance à surestimer la confiance qu'on peut avoir dans le chiffre brut.
-XG_SAFETY_COEFFICIENT = 0.85
+    xgB_m = st.number_input("xG Marqués (Ext)", value=default_xg["xgB_m"], step=0.01, key="xgB_m")
+    xgB_c = st.number_input("xG Concédés (Ext)", value=default_xg["xgB_c"], step=0.01, key="xgB_c")
 
 st.divider()
 
 # ---------------------------------------------------------
-# 2. COTES BETCLIC
+# COTES BETCLIC
 # ---------------------------------------------------------
-st.subheader("📊 2. Cotes Betclic")
+st.subheader("📊 3. Cotes Betclic")
 
-# Interrupteur d'affichage : passe à True si tu veux revoir l'Over/Under un jour.
-# Le calcul et les cotes Over/Under restent intacts plus bas, juste non affichés.
-SHOW_OVER_UNDER = False
+st.markdown("**Cotes Over / Under (Les 3 Lignes Clés)**")
+co1, co2, co3 = st.columns(3)
+bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
+bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
+bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
 
 st.markdown("**Les 2 équipes marquent (BTTS)**")
 cb1, cb2 = st.columns(2)
-bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
-bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
-
-st.markdown("**Évolution de la cote depuis ta première consultation**")
-st.caption("Cote qui baisse = le marché se resserre vers ce résultat (signal favorable). Cote qui monte = le marché s'en éloigne (signal défavorable, mieux vaut ne pas jouer).")
-cm1, cm2 = st.columns(2)
-MOVEMENT_OPTIONS = ["➡️ Stable / pas suivi", "↗️ En hausse", "↘️ En baisse"]
-mvt_btts_oui = cm1.selectbox("Évolution BTTS Oui", MOVEMENT_OPTIONS, key="mvt_btts_oui")
-mvt_btts_non = cm2.selectbox("Évolution BTTS Non", MOVEMENT_OPTIONS, key="mvt_btts_non")
-
-st.markdown("**Cotes Over / Under (gardées en mémoire, non utilisées pour le moment)**")
-if SHOW_OVER_UNDER:
-    co1, co2, co3 = st.columns(3)
-    bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
-    bk_o25 = co2.number_input("Over 2.5", value=1.80, step=0.01, key="bk_o25")
-    bk_u25 = co3.number_input("Under 2.5", value=1.95, step=0.01, key="bk_u25")
-else:
-    st.caption("Masquées — passe SHOW_OVER_UNDER à True en haut du fichier pour les revoir.")
+bk_btts_oui = cb1.number_input("BTTS Oui", value=1.65, step=0.01, key="bk_btts_oui")
+bk_btts_non = cb2.number_input("BTTS Non", value=2.10, step=0.01, key="bk_btts_non")
 
 # ---------------------------------------------------------
-# 3. CALCULS DU MODÈLE DIXON-COLES & POISSON
+# CALCULS DU MODÈLE DIXON-COLES & POISSON
 # ---------------------------------------------------------
 lambda_val = (xgA_m + xgB_c) / 2
 mu_val = (xgB_m + xgA_c) / 2
 
-
 def poisson(k, lmbda):
     return (math.pow(lmbda, k) * math.exp(-lmbda)) / math.factorial(k) if lmbda > 0 else 0
 
-
-p_1, p_N, p_2 = 0.0, 0.0, 0.0
 p_btts_oui = 0.0
 p_over_15 = 0.0
 p_over_25 = 0.0
@@ -80,8 +77,8 @@ rho = -0.13
 for x in range(10):
     for y in range(10):
         p = poisson(x, lambda_val) * poisson(y, mu_val)
-
-        # Correction Dixon-Coles (corrige la corrélation des scores bas, indépendant du coefficient xG ci-dessus)
+        
+        # Correction Dixon-Coles
         if x == 0 and y == 0: p *= (1 - lambda_val * mu_val * rho)
         elif x == 1 and y == 0: p *= (1 + mu_val * rho)
         elif x == 0 and y == 1: p *= (1 + lambda_val * rho)
@@ -99,95 +96,46 @@ for x in range(10):
 p_btts_non = 1.0 - p_btts_oui
 p_under_25 = 1.0 - p_over_25
 xg_total = lambda_val + mu_val
-xg_total_prudent = xg_total * XG_SAFETY_COEFFICIENT
 
 st.divider()
 
 # ---------------------------------------------------------
-# 4. RÉSULTATS
+# RÉSULTATS & VALUEBETS
 # ---------------------------------------------------------
-st.subheader("🎯 3. Résultats & ValueBets")
+st.subheader("🎯 4. Résultats & ValueBets")
 
-# Bloc d'info neutre : affiche les 2 chiffres côte à côte, sans donner de "recommandation"
-# (le calcul du xG total/prudent ne compare jamais aux cotes -> ce n'est jamais lui qui doit
-# dire si un pari est bon, seulement donner un repère de contexte sur le match)
 st.markdown(
     f"""
-    <div style="background-color: #0f172a; padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid #334155;">
-        <div style="display:flex; justify-content:space-around; text-align:center;">
-            <div>
-                <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">xG CALCULÉ (λ + μ)</div>
-                <div style="color: #f8fafc; font-size: 1.6rem; font-weight: 900; font-family: monospace;">{xg_total:.2f}</div>
-                <div style="color: #64748b; font-size: 0.75rem;">({lambda_val:.2f} - {mu_val:.2f})</div>
-            </div>
-            <div>
-                <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">xG AVEC COEFFICIENT (×{XG_SAFETY_COEFFICIENT})</div>
-                <div style="color: #f8fafc; font-size: 1.6rem; font-weight: 900; font-family: monospace;">{xg_total_prudent:.2f}</div>
-                <div style="color: #64748b; font-size: 0.75rem;">version prudente</div>
-            </div>
-        </div>
+    <div style="background-color: #0f172a; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 16px; border: 1px solid #334155;">
+        <div style="color: #94a3b8; font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;">xG ATTENDUS DANS LE MATCH (λ + μ)</div>
+        <div style="color: #f8fafc; font-size: 1.8rem; font-weight: 900; font-family: monospace;">{xg_total:.2f} BUTS ATTENDUS ({lambda_val:.2f} - {mu_val:.2f})</div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-
-def display_card(title, bk, prob, movement=None):
+def display_card(title, bk, prob):
+    fair = 1 / prob if prob > 0 else 0
     prob_quant = prob * 100
-
-    # --- Edge en POINTS (proba modèle - proba implicite de la cote), avec marge de sécurité ---
-    EDGE_MARGE = 0.03  # marge de sécurité (3 pts), même logique que les outils HTML BTTS/DNB
-    implied_prob = (1 / bk) if bk > 0 else 0
-    edge_points = (prob - implied_prob) * 100  # écart brut, sert à l'affichage
-    fair = 1 / (prob - EDGE_MARGE) if prob > EDGE_MARGE else 0  # cote juste mini, avec marge
-
-    # --- ROI attendu (valeur espérée par euro misé) — indicateur complémentaire, affiché à part ---
-    roi = ((bk * prob) - 1) * 100 if bk > 0 else 0
-
-    # --- Seuils de badge ---
-    EDGE_THRESHOLD_ULTRA = 3.0  # pts
-    is_val = edge_points > 0 and bk > 0
-    is_ultra = is_val and edge_points > EDGE_THRESHOLD_ULTRA and prob_quant >= 75.0
-
-    # --- Décision finale : vert UNIQUEMENT si edge positif ET cote en baisse (marché qui confirme) ---
-    movement_confirms = movement == "↘️ En baisse"
-    on_joue = is_val and movement_confirms
-
-    if on_joue and is_ultra:
-        card_bg = "background-color: #064e3b; border: 3px solid #10b981;"
+    
+    is_val = bk > fair and bk > 1.0
+    val_edge = (((bk * prob) - 1) * 100) if is_val else 0
+    is_high_conf = is_val and prob_quant >= 75.0
+    
+    if is_high_conf:
+        card_bg = "background-color: #064e3b; border: 2px solid #f59e0b;"
         badge = f"""
-        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.15rem; padding: 8px; border-radius: 6px; text-align: center; margin-top: 6px;">
-            🔥 ULTRA VALUE (+{edge_points:.1f} pts) [PROBA ≥ 75%]
+        <div style="background-color: #10b981; color: #000000; font-weight: 900; font-size: 1.1rem; padding: 6px; border-radius: 6px; text-align: center; margin-top: 6px;">
+            🔥 ULTRA VALUE (+{val_edge:.1f}%) [PROBA > 75%]
         </div>
         """
-    elif on_joue:
-        card_bg = "background-color: #14532d; border: 3px solid #10b981;"
-        badge = f'<div style="color: #10b981; font-weight: 900; font-size: 1.15rem; margin-top: 6px;">+{edge_points:.1f} pts VALUE</div>'
     elif is_val:
-        # Edge positif mais mouvement de cote qui ne confirme pas (stable ou en hausse) -> pas de vert
-        card_bg = "background-color: #1e293b; border: 1px solid #f59e0b;"
-        badge = f'<div style="color: #f59e0b; font-weight: bold; font-size: 1rem; margin-top: 6px;">+{edge_points:.1f} pts d\'edge, mais non confirmé par le marché</div>'
+        card_bg = "background-color: #1e4620; border: 1px solid #10b981;"
+        badge = f'<div style="color: #10b981; font-weight: bold; font-size: 1.1rem; margin-top: 6px;">+{val_edge:.1f}% VALUE</div>'
     else:
         card_bg = "background-color: #1e293b; border: 1px solid #334155;"
-        badge = f'<div style="color: #ef4444; font-weight: bold; font-size: 1rem; margin-top: 6px;">NO VALUE ({edge_points:+.1f} pts)</div>'
-
-    # --- Interprétation de l'évolution de cote (purement indicative) ---
-    movement_html = ""
-    if movement and movement != "➡️ Stable / pas suivi":
-        if movement == "↘️ En baisse":
-            mvt_note = "le marché se resserre vers ce résultat (confirmation) → signal favorable pour jouer."
-            mvt_color = "#10b981"
-        else:  # En hausse
-            mvt_note = "le marché s'éloigne de ce résultat (doute) → signal défavorable, mieux vaut ne pas jouer même si l'edge semble bon."
-            mvt_color = "#ef4444"
-        movement_html = f'<div style="font-size: 0.8rem; color: {mvt_color}; margin-top: 4px; margin-bottom: 4px;">{movement} — {mvt_note}</div>'
-
-    # --- Verdict final, gros et en gras ---
-    if on_joue:
-        verdict_html = '<div style="background-color:#10b981; color:#000000; font-weight:900; font-size:1.3rem; text-align:center; padding:8px; border-radius:6px; margin-top:8px;">✅ ON JOUE</div>'
-    else:
-        verdict_html = '<div style="background-color:#3d1a1a; color:#ff8080; font-weight:900; font-size:1.3rem; text-align:center; padding:8px; border-radius:6px; margin-top:8px;">❌ ON NE JOUE PAS</div>'
-
+        badge = '<div style="color: #ef4444; font-weight: bold; font-size: 1.1rem; margin-top: 6px;">NO VALUE</div>'
+        
     st.markdown(
         f"""
         <div style="{card_bg} padding: 14px; border-radius: 10px; margin-bottom: 12px;">
@@ -196,26 +144,27 @@ def display_card(title, bk, prob, movement=None):
             <div style="font-size: 0.95rem; color: #cbd5e1; margin-bottom: 4px;">
                 Cote Betclic : <b style="color: #ffffff;">{bk:.2f}</b> | Cote juste mini : <b style="color: #f59e0b;">≥ {fair:.2f}</b>
             </div>
-            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">
-                ROI attendu : <b style="color: {'#10b981' if roi > 0 else '#ef4444'};">{roi:+.1f}%</b>
-            </div>
-            {movement_html}
             {badge}
-            {verdict_html}
         </div>
         """,
         unsafe_allow_html=True
     )
 
+# 1. DIAGNOSTIC ET OVER / UNDER
+st.markdown("#### ⚽ DIAGNOSTIC & OVER / UNDER")
 
-# OVER / UNDER — masqué pour l'instant (voir SHOW_OVER_UNDER en haut du fichier), code intact
-if SHOW_OVER_UNDER:
-    st.markdown("#### ⚽ OVER / UNDER")
-    display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
-    display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
-    display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
+if xg_total >= 2.70 and p_over_25 >= 0.58:
+    st.success(f"✅ **RECOMMANDATION SÉCURISÉE : OVER 2.5 BUTS** (xG Cumulés : {xg_total:.2f})")
+elif xg_total >= 2.10:
+    st.warning(f"🛡️ **OPTION SÉCURISÉE : OVER 1.5 BUTS** (xG Cumulés : {xg_total:.2f})")
+else:
+    st.info(f"🔒 **MATCH PEU OFFENSIF : UNDER 2.5 BUTS** (xG Cumulés : {xg_total:.2f})")
 
-# BTTS — seul marché actif pour le moment
+display_card("OVER 1.5 BUTS", bk_o15, p_over_15)
+display_card("OVER 2.5 BUTS", bk_o25, p_over_25)
+display_card("UNDER 2.5 BUTS", bk_u25, p_under_25)
+
+# 2. BTTS
 st.markdown("#### 🎯 MARCHÉ LES 2 ÉQUIPES MARQUENT (BTTS)")
-display_card("BTTS OUI", bk_btts_oui, p_btts_oui, movement=mvt_btts_oui)
-display_card("BTTS NON", bk_btts_non, p_btts_non, movement=mvt_btts_non)
+display_card("BTTS OUI", bk_btts_oui, p_btts_oui)
+display_card("BTTS NON", bk_btts_non, p_btts_non)
