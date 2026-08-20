@@ -10,58 +10,29 @@ except ImportError:
 
 st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="centered")
 
-st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & BTTS")
+st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & l
 
 # ---------------------------------------------------------
-# 1. IMPORTATION CSV DES MATCHS DE LA JOURNÉE
+# 1. IMPORTATION ET TÉLÉCHARGEMENT CSV
 # ---------------------------------------------------------
 st.subheader("📁 1. Importer les Matchs du Jour (CSV / Excel)")
 
-# Valeurs par défaut si aucun fichier n'est importé
+# Exemple de modèle prêt à être téléchargé
+template_csv = "match,xga_m,xga_c,xgb_m,xgb_c\nGirona vs Rayo Vallecano,1.85,1.20,1.30,1.55\nHammarby vs Kalmar,2.10,1.10,1.60,1.70\n"
+
+# Bouton pour récupérer le fichier sur ton téléphone
+st.download_button(
+    label="📥 Télécharger le modèle CSV vierge",
+    data=template_csv,
+    file_name="modele_matchs.csv",
+    mime="text/csv"
+)
+
+st.caption("Télécharge le fichier ci-dessus, modifie les valeurs sur ton téléphone, puis réimporte-le juste en dessous.")
+
+# Case de dépôt
 default_values = {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
-
-uploaded_file = st.file_uploader("Dépose ton fichier CSV/Excel contenant la liste des matchs et xG", type=["csv", "xlsx"])
-
-if uploaded_file is not None:
-    if not HAS_PANDAS:
-        st.error("⚠️ La bibliothèque `pandas` n'est pas installée sur le serveur. Ajoute `pandas` et `openpyxl` dans ton fichier `requirements.txt` sur GitHub.")
-    else:
-        try:
-            if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-            
-            # Nettoyage automatique des noms de colonnes (minuscules sans espaces)
-            df.columns = [c.strip().lower() for c in df.columns]
-            
-            # Attente de colonnes standardisées : match (ou equipe_dom, equipe_ext), xga_m, xga_c, xgb_m, xgb_c
-            if 'match' in df.columns:
-                match_list = df['match'].tolist()
-            elif 'domicile' in df.columns and 'exterieur' in df.columns:
-                df['match'] = df['domicile'] + " vs " + df['exterieur']
-                match_list = df['match'].tolist()
-            else:
-                match_list = [f"Match #{i+1}" for i in range(len(df))]
-                df['match'] = match_list
-
-            selected_match = st.selectbox("Sélectionne le match à analyser :", match_list)
-            
-            # Extraction de la ligne sélectionnée
-            match_row = df[df['match'] == selected_match].iloc[0]
-            
-            # Récupération automatique des 4 xG
-            default_values["xgA_m"] = float(match_row.get('xga_m', default_values["xgA_m"]))
-            default_values["xgA_c"] = float(match_row.get('xga_c', default_values["xgA_c"]))
-            default_values["xgB_m"] = float(match_row.get('xgb_m', default_values["xgB_m"]))
-            default_values["xgB_c"] = float(match_row.get('xgb_c', default_values["xgB_c"]))
-            
-            st.success(f"✅ xG chargés pour {selected_match}")
-
-        except Exception as e:
-            st.error(f"Erreur lors de la lecture du fichier : {e}")
-
-st.divider()
+uploaded_file = st.file_uploader("Dépose ton fichier CSV/Excel rempli", type=["csv", "xlsx"])
 
 # ---------------------------------------------------------
 # 2. STATISTIQUES xG (REMPLIES AUTOMATIQUEMENT OU MANUELLES)
