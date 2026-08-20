@@ -1,7 +1,8 @@
 import streamlit as st
 import math
+import os
 
-# Essai d'import de pandas pour lire facilement les fichiers CSV / Excel
+# Tentative d'importation de pandas
 try:
     import pandas as pd
     HAS_PANDAS = True
@@ -10,32 +11,77 @@ except ImportError:
 
 st.set_page_config(page_title="Calculateur Quant xG", page_icon="⚽", layout="centered")
 
-st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & l
+st.title("⚽ CALCULATEUR QUANT - OVER/UNDER & BTTS")
 
 # ---------------------------------------------------------
 # 1. IMPORTATION ET TÉLÉCHARGEMENT CSV
 # ---------------------------------------------------------
-st.subheader("📁 1. Importer les Matchs du Jour (CSV / Excel)")
+st.subheader("📁 1. Matchs du Jour (CSV / Excel)")
 
-# Exemple de modèle prêt à être téléchargé
+default_values = {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
+
+# Modèle CSV prêt à être téléchargé sur le téléphone
 template_csv = "match,xga_m,xga_c,xgb_m,xgb_c\nGirona vs Rayo Vallecano,1.85,1.20,1.30,1.55\nHammarby vs Kalmar,2.10,1.10,1.60,1.70\n"
 
-# Bouton pour récupérer le fichier sur ton téléphone
 st.download_button(
-    label="📥 Télécharger le modèle CSV vierge",
+    label="📥 1. Télécharger le modèle CSV exemple",
     data=template_csv,
-    file_name="modele_matchs.csv",
+    file_name="matchs_exemple.csv",
     mime="text/csv"
 )
 
-st.caption("Télécharge le fichier ci-dessus, modifie les valeurs sur ton téléphone, puis réimporte-le juste en dessous.")
+st.caption("Télécharge le fichier modèle ci-dessus, modifie les chiffres, puis redépose-le ci-dessous.")
 
-# Case de dépôt
-default_values = {"xgA_m": 1.67, "xgA_c": 0.83, "xgB_m": 1.00, "xgB_c": 1.33}
-uploaded_file = st.file_uploader("Dépose ton fichier CSV/Excel rempli", type=["csv", "xlsx"])
+uploaded_file = st.file_uploader("📤 2. Dépose ton fichier CSV/Excel rempli", type=["csv", "xlsx"])
+
+df = None
+
+# Lecture du fichier déposé ou d'un fichier 'matchs.csv' présent sur GitHub
+if uploaded_file is not None and HAS_PANDAS:
+    try:
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+    except Exception as e:
+        st.error(f"Erreur de lecture du fichier importé : {e}")
+elif os.path.exists("matchs.csv") and HAS_PANDAS:
+    try:
+        df = pd.read_csv("matchs.csv")
+        st.info("ℹ️ Fichier 'matchs.csv' détecté depuis GitHub.")
+    except Exception as e:
+        pass
+
+if df is not None:
+    try:
+        df.columns = [c.strip().lower() for c in df.columns]
+        
+        if 'match' in df.columns:
+            match_list = df['match'].tolist()
+        elif 'domicile' in df.columns and 'exterieur' in df.columns:
+            df['match'] = df['domicile'] + " vs " + df['exterieur']
+            match_list = df['match'].tolist()
+        else:
+            match_list = [f"Match #{i+1}" for i in range(len(df))]
+            df['match'] = match_list
+
+        selected_match = st.selectbox("🎯 Sélectionne le match à analyser :", match_list)
+        
+        match_row = df[df['match'] == selected_match].iloc[0]
+        
+        default_values["xgA_m"] = float(match_row.get('xga_m', default_values["xgA_m"]))
+        default_values["xgA_c"] = float(match_row.get('xga_c', default_values["xgA_c"]))
+        default_values["xgB_m"] = float(match_row.get('xgb_m', default_values["xgB_m"]))
+        default_values["xgB_c"] = float(match_row.get('xgb_c', default_values["xgB_c"]))
+        
+        st.success(f"✅ xG chargés automatiquement pour : **{selected_match}**")
+    except Exception as e:
+        st.error(f"Erreur d'extraction des données du match : {e}")
+
+st.divider()
 
 # ---------------------------------------------------------
-# 2. STATISTIQUES xG (REMPLIES AUTOMATIQUEMENT OU MANUELLES)
+# 2. STATISTIQUES xG
 # ---------------------------------------------------------
 st.subheader("📝 2. Statistiques xG")
 
@@ -51,9 +97,6 @@ with col_ext:
     xgB_m = st.number_input("xG Marqués (Ext)", value=default_values["xgB_m"], step=0.01, key="xgB_m")
     xgB_c = st.number_input("xG Concédés (Ext)", value=default_values["xgB_c"], step=0.01, key="xgB_c")
 
-# Coefficient de sécurité : réduit le xG calculé pour avoir une version plus prudente,
-# partant du principe qu'un modèle simple (sans forme récente précise, sans absences)
-# a tendance à surestimer la confiance qu'on peut avoir dans le chiffre brut.
 XG_SAFETY_COEFFICIENT = 0.85
 
 st.divider()
@@ -71,7 +114,7 @@ cb1, cb2 = st.columns(2)
 bk_btts_oui = cb1.number_input("BTTS Oui", value=1.49, step=0.01, key="bk_btts_oui")
 bk_btts_non = cb2.number_input("BTTS Non", value=2.33, step=0.01, key="bk_btts_non")
 
-st.markdown("**Les 2 équipes marquent OU + de 2.5 buts (gardé en mémoire, non utilisé pour le moment)**")
+st.markdown("**Les 2 équipes marquent OU + de 2.5 buts (gardé en mémoire)**")
 if SHOW_BTTS25:
     cbo1, cbo2 = st.columns(2)
     bk_btts25_oui = cbo1.number_input("BTTS+2.5 Oui", value=1.55, step=0.01, key="bk_btts25_oui")
@@ -80,7 +123,7 @@ else:
     st.caption("Masqué — passe SHOW_BTTS25 à True en haut du fichier pour le revoir.")
 
 st.markdown("**Évolution de la cote depuis ta première consultation**")
-st.caption("Cote qui baisse = le marché se resserre vers ce résultat (signal favorable). Cote qui monte = le marché s'en éloigne (signal défavorable, mieux vaut ne pas jouer).")
+st.caption("Cote qui baisse = le marché se resserre vers ce résultat. Cote qui monte = le marché s'en éloigne.")
 cm1, cm2 = st.columns(2)
 MOVEMENT_OPTIONS = ["➡️ Stable / pas suivi", "↗️ En hausse", "↘️ En baisse"]
 mvt_btts_oui = cm1.selectbox("Évolution BTTS Oui", MOVEMENT_OPTIONS, key="mvt_btts_oui")
@@ -91,7 +134,7 @@ if SHOW_BTTS25:
     mvt_btts25_oui = cm3.selectbox("Évolution BTTS+2.5 Oui", MOVEMENT_OPTIONS, key="mvt_btts25_oui")
     mvt_btts25_non = cm4.selectbox("Évolution BTTS+2.5 Non", MOVEMENT_OPTIONS, key="mvt_btts25_non")
 
-st.markdown("**Cotes Over / Under (gardées en mémoire, non utilisées pour le moment)**")
+st.markdown("**Cotes Over / Under (gardées en mémoire)**")
 if SHOW_OVER_UNDER:
     co1, co2, co3 = st.columns(3)
     bk_o15 = co1.number_input("Over 1.5", value=1.25, step=0.01, key="bk_o15")
@@ -153,7 +196,7 @@ p_btts_ou_25_non = 1.0 - p_btts_ou_25
 st.divider()
 
 # ---------------------------------------------------------
-# 5. RÉSULTATS
+# 5. RÉSULTATS & VALUEBETS
 # ---------------------------------------------------------
 st.subheader("🎯 4. Résultats & ValueBets")
 
